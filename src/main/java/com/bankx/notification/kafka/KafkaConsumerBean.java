@@ -15,7 +15,6 @@ import java.util.logging.Logger;
 @Singleton
 @Startup
 public class KafkaConsumerBean {
-
     private static final Logger log = Logger.getLogger(KafkaConsumerBean.class.getName());
     private KafkaConsumer<String, String> consumer;
     private Thread worker;
@@ -42,7 +41,6 @@ public class KafkaConsumerBean {
         worker = new Thread(this::pollLoop, "kafka-thread");
         worker.setDaemon(true);
         worker.start();
-
         log.info("Kafka consumer started (topics: users.stream, payments.stream)");
     }
 
