@@ -22,5 +22,5 @@ public class NotificationLogRepository {
         return database.getCollection("notification_logs");
     }
 
-    // Ваши методы для работы с MongoDB
+    // todo подготовить методы для работы с MongoDB
 }

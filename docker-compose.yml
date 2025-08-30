@@ -4,21 +4,35 @@ services:
     container_name: bankx-mongodb
     ports:
       - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: bankx-notification
     volumes:
       - mongodb_data:/data/db
     networks:
       - bankx-network
+    healthcheck:
+      test: ["CMD", "mongosh", "-u", "admin", "-p", "password", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:latest
+    image: bitnami/zookeeper:3.8
     container_name: bankx-zookeeper
     ports:
       - "2181:2181"
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+      ZOO_ENABLE_AUTH: "no"
     networks:
       - bankx-network
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo 'ruok' | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -33,10 +47,29 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     networks:
       - bankx-network
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--list", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  kafka-topics:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: bankx-kafka-topics
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - bankx-network
+    volumes:
+      - ./scripts:/scripts
+    entrypoint: ["/bin/bash", "/scripts/create-kafka-topics.sh"]
 
   wildfly:
     build:
@@ -45,14 +78,19 @@ services:
     container_name: bankx-wildfly
     ports:
       - "8080:8080"
-      - "9990:9990"
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MONGO_HOST=mongodb
       - MONGO_PORT=27017
+      - JAVA_OPTS=-Xms256m -Xmx512m
+      - MONGO_USERNAME=admin
+      - MONGO_PASSWORD=password
+      - MONGO_DATABASE=bankx-notification
     depends_on:
-      - mongodb
-      - kafka
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     networks:
       - bankx-network
 
