@@ -27,20 +27,6 @@ public class UserRegistrationConsumer {
     @Inject
     private NotificationService notificationService;
 
-    public void testConsume() {
-        // Создаем тестовое событие
-        UserEvent testEvent = new UserEvent();
-        testEvent.setEmail("test@example.com");
-        testEvent.setFirstName("Иван");
-        testEvent.setLastName("Иванов");
-        testEvent.setActivationKey(UUID.randomUUID());
-
-        System.out.println("Создано тестовое событие: " + testEvent);
-
-        // Обрабатываем событие
-        notificationService.processUserActivation(testEvent);
-    }
-
     private static final Logger log = Logger.getLogger(UserRegistrationConsumer.class.getName());
 
     @Inject

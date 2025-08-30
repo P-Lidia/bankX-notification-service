@@ -20,29 +20,32 @@ public class EmailService {
         String host = appConfig.getProperty("email.smtp.host");
         String port = appConfig.getProperty("email.smtp.port");
         String username = appConfig.getProperty("email.smtp.username");
-        String password = appConfig.getProperty("email.smtp.password");
-        String from = appConfig.getProperty("email.from", "noreply@bankx.com");
+        String oauthToken = appConfig.getProperty("yandex.oauth.token");
+        String from = appConfig.getProperty("email.from", username);
+
         LOG.info("Попытка отправки письма на: " + toEmail);
-        LOG.info("SMTP сервер: " + host + ":" + port);
-        LOG.info("Используемый логин: " + username);
+        LOG.info("Используем OAuth2 аутентификацию");
+
         Properties properties = new Properties();
         properties.put("mail.smtp.host", host);
         properties.put("mail.smtp.port", port);
         properties.put("mail.smtp.auth", "true");
-        properties.put("mail.smtp.starttls.enable", "true");
-        properties.put("mail.smtp.starttls.required", "true");
-        properties.put("mail.smtp.ssl.protocols", "TLSv1.2");
-        properties.put("mail.smtp.ssl.trust", host);
-        properties.put("mail.smtp.connectiontimeout", "5000");
-        properties.put("mail.smtp.timeout", "5000");
-        properties.put("mail.smtp.writetimeout", "5000");
+        properties.put("mail.smtp.ssl.enable", "true");
+        properties.put("mail.smtp.socketFactory.port", port);
+        properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+        properties.put("mail.smtp.socketFactory.fallback", "false");
+
+        // OAuth2 настройки
+        properties.put("mail.smtp.auth.mechanisms", "XOAUTH2");
+        properties.put("mail.smtp.sasl.enable", "true");
+        properties.put("mail.smtp.sasl.mechanisms", "XOAUTH2");
+        properties.put("mail.smtp.sasl.jaas.config",
+                "com.sun.security.sasl.ClientFactory com.sun.mail.imap.IMAPProvider");
+
         properties.put("mail.debug", "true");
+
         try {
-            Session session = Session.getInstance(properties, new Authenticator() {
-                protected PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication(username, password);
-                }
-            });
+            Session session = Session.getInstance(properties);
 
             Message message = new MimeMessage(session);
             message.setFrom(new InternetAddress(from));
@@ -55,18 +58,28 @@ public class EmailService {
                                "С уважением,\nКоманда BankX";
 
             message.setText(emailText);
-            message.setHeader("Content-Type", "text/plain; charset=UTF-8");
+
+            LOG.info("Отправляем письмо с OAuth2...");
+
+            // Используем Transport с OAuth2 аутентификацией
             Transport transport = session.getTransport("smtp");
-            try {
-                transport.connect(host, Integer.parseInt(port), username, password);
-                transport.sendMessage(message, message.getAllRecipients());
-                LOG.info("Письмо успешно отправлено на: " + toEmail);
-            } finally {
-                transport.close();
-            }
+            transport.connect(host, Integer.parseInt(port), username, oauthToken);
+            transport.sendMessage(message, message.getAllRecipients());
+            transport.close();
+
+            LOG.info("Письмо успешно отправлено на: " + toEmail);
+
+        } catch (AuthenticationFailedException e) {
+            LOG.severe("Ошибка аутентификации OAuth2: " + e.getMessage());
+            LOG.severe("Проверьте OAuth токен");
+        } catch (MessagingException e) {
+            LOG.severe("Ошибка отправки письма: " + e.getMessage());
+            e.printStackTrace();
         } catch (Exception e) {
-            LOG.severe("Ошибка при отправке письма: " + e.getMessage());
+            LOG.severe("Неожиданная ошибка: " + e.getMessage());
             e.printStackTrace();
         }
     }
+
+
 }

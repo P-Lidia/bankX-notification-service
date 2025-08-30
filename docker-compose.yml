@@ -74,11 +74,14 @@ services:
     container_name: bankx-wildfly
     ports:
       - "8080:8080"
-      - "9990:9990"
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MONGO_HOST=mongodb
       - MONGO_PORT=27017
+      - JAVA_OPTS=-Xms256m -Xmx512m
+      - MONGO_USERNAME=admin
+      - MONGO_PASSWORD=password
+      - MONGO_DATABASE=bankx-notification
     depends_on:
       mongodb:
         condition: service_healthy
