@@ -40,7 +40,7 @@ public class UserRegistrationConsumer {
     private volatile boolean running = false;
     private KafkaConsumer<String, String> consumer;
 
-    @PostConstruct
+/*    @PostConstruct
     public void init() {
         Properties consumerProps = kafkaConsumerConfig.getConsumerProperties(
                 "notification-service-registration-group"
@@ -52,6 +52,41 @@ public class UserRegistrationConsumer {
         executorService = Executors.newSingleThreadExecutor();
         executorService.execute(this::pollMessages);
         log.info("Started Kafka consumer for topic: " + topic);
+    }*/
+
+/*    @PostConstruct
+    public void init() {
+        try {
+            log.info("=== INITIALIZING KAFKA CONSUMER ===");
+            log.info("Getting consumer properties...");
+            Properties consumerProps = kafkaConsumerConfig.getConsumerProperties(
+                    "notification-service-registration-group"
+            );
+            log.info("Consumer properties: " + consumerProps);
+
+            log.info("Creating Kafka consumer...");
+            consumer = new KafkaConsumer<>(consumerProps);
+
+            String topic = kafkaTopicConfig.getUserRegistrationTopic();
+            log.info("Subscribing to topic: " + topic);
+
+            consumer.subscribe(Collections.singletonList(topic));
+            running = true;
+
+            log.info("Creating executor service...");
+            executorService = Executors.newSingleThreadExecutor();
+
+            log.info("Starting message polling thread...");
+            executorService.execute(this::pollMessages);
+
+            log.info("=== KAFKA CONSUMER INITIALIZED SUCCESSFULLY ===");
+            log.info("Topic: " + topic);
+            log.info("Group: notification-service-registration-group");
+        } catch (Exception e) {
+            log.severe("=== FAILED TO INITIALIZE KAFKA CONSUMER ===");
+            log.severe("Error: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void pollMessages() {
@@ -74,6 +109,74 @@ public class UserRegistrationConsumer {
             log.severe("Error in Kafka consumer: " + e.getMessage());
         } finally {
             consumer.close();
+        }
+    }*/
+
+    @PostConstruct
+    public void init() {
+        try {
+            System.out.println("=== KAFKA CONSUMER INITIALIZATION STARTED ===");
+            System.out.println("Getting consumer properties...");
+
+            Properties consumerProps = kafkaConsumerConfig.getConsumerProperties(
+                    "notification-service-registration-group"
+            );
+            System.out.println("Consumer properties: " + consumerProps);
+
+            System.out.println("Creating Kafka consumer instance...");
+            consumer = new KafkaConsumer<>(consumerProps);
+
+            String topic = kafkaTopicConfig.getUserRegistrationTopic();
+            System.out.println("Subscribing to topic: " + topic);
+
+            consumer.subscribe(Collections.singletonList(topic));
+            running = true;
+
+            System.out.println("Creating executor service...");
+            executorService = Executors.newSingleThreadExecutor();
+
+            System.out.println("Starting message polling thread...");
+            executorService.execute(this::pollMessages);
+
+            System.out.println("=== KAFKA CONSUMER INITIALIZED SUCCESSFULLY ===");
+            System.out.println("Topic: " + topic);
+            System.out.println("Group: notification-service-registration-group");
+        } catch (Exception e) {
+            System.err.println("=== FAILED TO INITIALIZE KAFKA CONSUMER ===");
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void pollMessages() {
+        try {
+            System.out.println("Starting to poll for messages...");
+            while (running) {
+                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
+                System.out.println("Polled " + records.count() + " records");
+
+                records.forEach(record -> {
+                    try {
+                        System.out.println("Received message: " + record.value());
+                        UserEvent userEvent = objectMapper.readValue(record.value(), UserEvent.class);
+                        System.out.println("Parsed user registration event: " + userEvent);
+
+                        notificationService.processUserActivation(userEvent);
+                        System.out.println("Successfully processed user event for: " + userEvent.getEmail());
+                    } catch (Exception e) {
+                        System.err.println("Error processing message: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                });
+            }
+        } catch (WakeupException e) {
+            System.out.println("Consumer woken up for shutdown");
+        } catch (Exception e) {
+            System.err.println("Unexpected error in Kafka consumer: " + e.getMessage());
+            e.printStackTrace();
+        } finally {
+            consumer.close();
+            System.out.println("Kafka consumer closed");
         }
     }
 
