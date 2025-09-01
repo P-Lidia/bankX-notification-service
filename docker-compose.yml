@@ -10,9 +10,6 @@ services:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: password
       MONGO_INITDB_DATABASE: bankx-notification
-      MONGO_INITDB_USERNAME: appuser
-      MONGO_INITDB_USER_PASSWORD: apppassword
-      MONGO_INITDB_USER_ROLES: readWrite@bankx-notification
     volumes:
       - mongodb_data:/data/db
     networks:
