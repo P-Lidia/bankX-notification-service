@@ -80,6 +80,42 @@ public class EmailService {
             e.printStackTrace();
         }
     }
+    public void sendPasswordResetEmail(String toEmail, String subject, String htmlBody) {
+        String host = appConfig.getProperty("email.smtp.host");
+        String port = appConfig.getProperty("email.smtp.port");
+        String username = appConfig.getProperty("email.smtp.username");
+        String oauthToken = appConfig.getProperty("yandex.oauth.token");
+        String from = appConfig.getProperty("email.from", username);
 
+        Properties properties = new Properties();
+        properties.put("mail.smtp.host", host);
+        properties.put("mail.smtp.port", port);
+        properties.put("mail.smtp.auth", "true");
+        properties.put("mail.smtp.ssl.enable", "true");
+        properties.put("mail.smtp.socketFactory.port", port);
+        properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+        properties.put("mail.smtp.socketFactory.fallback", "false");
+        properties.put("mail.smtp.auth.mechanisms", "XOAUTH2");
+        properties.put("mail.smtp.sasl.enable", "true");
+        properties.put("mail.debug", "true");
 
+        try {
+            Session session = Session.getInstance(properties);
+            MimeMessage message = new MimeMessage(session);
+            message.setFrom(new InternetAddress(from));
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
+            message.setSubject(subject, "UTF-8");
+            message.setContent(htmlBody, "text/html; charset=UTF-8"); // ВАЖНО: HTML
+
+            Transport transport = session.getTransport("smtp");
+            transport.connect(host, Integer.parseInt(port), username, oauthToken);
+            transport.sendMessage(message, message.getAllRecipients());
+            transport.close();
+
+            LOG.info("RESET email sent to: " + toEmail);
+        } catch (MessagingException e) {
+            LOG.severe("RESET email failed: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
 }

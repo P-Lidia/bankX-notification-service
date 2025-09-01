@@ -14,10 +14,10 @@ public class KafkaTopicConfig {
     }
 
     public String getUserRegistrationTopic() {
-        return appConfig.getProperty("kafka.user.topic", "notifications.registration.events");
+        return appConfig.getProperty("kafka.user.registration.topic", "notifications.registration.events");
     }
 
     public String getUserPasswordTopic() {
-        return appConfig.getProperty("kafka.user.topic", "notifications.reset.password.events");
+        return appConfig.getProperty("kafka.user.reset.topic", "notifications.reset.password.events");
     }
 }
