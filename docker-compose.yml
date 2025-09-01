@@ -90,6 +90,7 @@ services:
     container_name: bankx-wildfly
     ports:
       - "8080:8080"
+      - "9990:9990"
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MONGO_HOST=mongodb
