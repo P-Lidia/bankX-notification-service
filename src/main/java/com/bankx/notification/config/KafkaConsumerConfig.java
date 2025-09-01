@@ -18,9 +18,10 @@ public class KafkaConsumerConfig {
         properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
                 appConfig.getProperty("kafka.bootstrap.servers", "kafka:9092"));
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName()); // Исправлено
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName()); // Исправлено
         properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
         return properties;
     }
 
