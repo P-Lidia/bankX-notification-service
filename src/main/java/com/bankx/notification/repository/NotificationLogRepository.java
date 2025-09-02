@@ -1,103 +1,65 @@
 package com.bankx.notification.repository;
 
-import com.bankx.notification.model.NotificationLog;
+import com.bankx.notification.config.MongoConfig;
+import com.mongodb.ErrorCategory;
+import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.IndexOptions;
+import com.mongodb.client.model.Indexes;
 import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
 import org.bson.Document;
-import org.bson.conversions.Bson;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-
-@Singleton
+@ApplicationScoped
 public class NotificationLogRepository {
 
     @Inject
     private MongoClient mongoClient;
 
-    private MongoCollection<Document> collection;
+    @Inject
+    private MongoConfig mongoConfig;
 
+    private MongoCollection<Document> getCollection() {
+        MongoDatabase database = mongoClient.getDatabase(mongoConfig.getDatabaseName());
+        return database.getCollection("notification_logs");
+    }
+
+    // todo подготовить методы для работы с MongoDB
+
+    // (опционально) один раз создадим уникальный индекс по eventId — защита от дублей
     @PostConstruct
-    public void init() {
-        MongoDatabase database = mongoClient.getDatabase("your_database_name");
-        this.collection = database.getCollection("notification_logs");
+    public void ensureIndexes() {
+        getCollection().createIndex(Indexes.ascending("eventId"),
+                new IndexOptions().unique(true));
     }
 
-    public void save(NotificationLog notificationLog) {
+    /** true, если запись с таким eventId уже есть (значит, событие обработано) */
+    public boolean existsByEventId(String eventId) {
+        if (eventId == null) return false;
+        return getCollection().find(Filters.eq("eventId", eventId)).first() != null;
+    }
+
+    /** фиксируем успешную отправку (дубликаты молча игнорируем) */
+    public void saveSuccess(String eventId, String eventType, String target) {
+        if (eventId == null) return;
         Document doc = new Document()
-                .append("clientId", notificationLog.getClientId())
-                .append("activationKey", notificationLog.getActivationKey().toString())
-                .append("statusId", notificationLog.getStatusId())
-                .append("eventType", notificationLog.getEventType())
-                .append("email", notificationLog.getEmail())
-                .append("phone", notificationLog.getPhone())
-                .append("messageContent", notificationLog.getMessageContent())
-                .append("sendingChannel", notificationLog.getSendingChannel())
-                .append("createdAt", notificationLog.getCreatedAt())
-                .append("errorMessage", notificationLog.getErrorMessage());
-
-        collection.insertOne(doc);
-    }
-
-    public NotificationLog findById(Long clientId, UUID activationKey, int statusId) {
-        Bson filter = Filters.and(
-                Filters.eq("clientId", clientId),
-                Filters.eq("activationKey", activationKey.toString()),
-                Filters.eq("statusId", statusId)
-        );
-
-        Document doc = collection.find(filter).first();
-        return doc != null ? mapDocumentToNotificationLog(doc) : null;
-    }
-
-    public List<NotificationLog> findAll() {
-        List<NotificationLog> logs = new ArrayList<>();
-        for (Document doc : collection.find()) {
-            logs.add(mapDocumentToNotificationLog(doc));
+                .append("eventId", eventId)
+                .append("eventType", eventType)
+                .append("target", target)
+                .append("status", "SUCCESS")
+                .append("createdAt", System.currentTimeMillis());
+        try {
+            getCollection().insertOne(doc);
+        } catch (MongoWriteException e) {
+            // если уже есть запись с таким eventId — просто игнорируем
+            if (e.getError() != null && e.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+                return;
+            }
+            throw e;
         }
-        return logs;
-    }
-
-    public List<NotificationLog> findByClientId(Long clientId) {
-        List<NotificationLog> logs = new ArrayList<>();
-        Bson filter = Filters.eq("clientId", clientId);
-
-        for (Document doc : collection.find(filter)) {
-            logs.add(mapDocumentToNotificationLog(doc));
-        }
-        return logs;
-    }
-
-    public void delete(Long clientId, UUID activationKey, int statusId) {
-        Bson filter = Filters.and(
-                Filters.eq("clientId", clientId),
-                Filters.eq("activationKey", activationKey.toString()),
-                Filters.eq("statusId", statusId)
-        );
-
-        collection.deleteOne(filter);
-    }
-
-    private NotificationLog mapDocumentToNotificationLog(Document doc) {
-        NotificationLog log = new NotificationLog();
-        log.setClientId(doc.getLong("clientId"));
-        log.setActivationKey(UUID.fromString(doc.getString("activationKey")));
-        log.setStatusId(doc.getInteger("statusId"));
-        log.setEventType(doc.getString("eventType"));
-        log.setEmail(doc.getString("email"));
-        log.setPhone(doc.getString("phone"));
-        log.setMessageContent(doc.getString("messageContent"));
-        log.setSendingChannel(doc.getString("sendingChannel"));
-        log.setCreatedAt(doc.get("createdAt", LocalDateTime.class));
-        log.setErrorMessage(doc.getString("errorMessage"));
-
-        return log;
     }
 }

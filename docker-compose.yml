@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: bankx-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: bankx-notification
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - bankx-network
+    healthcheck:
+      test: ["CMD", "mongosh", "-u", "admin", "-p", "password", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  zookeeper:
+    image: bitnami/zookeeper:3.8
+    container_name: bankx-zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+      ZOO_ENABLE_AUTH: "no"
+    networks:
+      - bankx-network
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo 'ruok' | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: bankx-kafka
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer=INFO,kafka.consumer=INFO,kafka=INFO"
+      KAFKA_LOG4J_ROOT_LOGLEVEL: "INFO"
+      KAFKA_LOG4J_APPENDER: "stdout"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    networks:
+      - bankx-network
+    healthcheck:
+      test: ["CMD", "bash", "-c", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  kafka-topics:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: bankx-kafka-topics
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - bankx-network
+    volumes:
+      - ./scripts:/scripts
+    environment:
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer=INFO,kafka.consumer=INFO,kafka=INFO"
+      KAFKA_LOG4J_ROOT_LOGLEVEL: "INFO"
+      KAFKA_LOG4J_APPENDER: "stdout"
+    entrypoint: ["/bin/bash", "-c", "sleep 15 && /scripts/create-kafka-topics.sh"]
+
+  wildfly:
+    build:
+      context: .
+      dockerfile: .docker/Dockerfile
+    container_name: bankx-wildfly
+    ports:
+      - "8080:8080"
+      - "9990:9990"
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+      - JAVA_OPTS=-Xms256m -Xmx512m
+      - MONGO_USERNAME=appuser
+      - MONGO_PASSWORD=apppassword
+      - MONGO_DATABASE=bankx-notification
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - bankx-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  bankx-network:
+    driver: bridge
