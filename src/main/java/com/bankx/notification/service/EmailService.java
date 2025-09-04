@@ -21,7 +21,7 @@ public class EmailService {
         String port = appConfig.getProperty("email.smtp.port");
         String username = appConfig.getProperty("email.smtp.username");
         String oauthToken = appConfig.getProperty("yandex.oauth.token");
-        String from = appConfig.getProperty("email.from", username);
+        String from = appConfig.getProperty("email.from.address", username);//добавлен .address тк в проперти email.from.address=login@yandex.ru
 
         LOG.info("Попытка отправки письма на: " + toEmail);
         LOG.info("Используем OAuth2 аутентификацию");
@@ -86,7 +86,7 @@ public class EmailService {
         String port = appConfig.getProperty("email.smtp.port");
         String username = appConfig.getProperty("email.smtp.username");
         String oauthToken = appConfig.getProperty("yandex.oauth.token");
-        String from = appConfig.getProperty("email.from", username);
+        String from = appConfig.getProperty("email.from.address", username);//добавлен .address тк в проперти email.from.address=login@yandex.ru
 
         LOG.info("Попытка отправки письма на: " + toEmail);
         LOG.info("Используем OAuth2 аутентификацию");
@@ -139,13 +139,14 @@ public class EmailService {
         }
     }
     public void sendPasswordResetEmail(String toEmail, String resetLink) {
-        String subject = "Password reset";
-        String html = "<!doctype html><html><body style='font-family:Arial,sans-serif'>" +
-                "<h2>Password reset</h2>" +
-                "<p>Hello!</p>" +
-                "<p>Click the link below to set a new password:</p>" +
-                "<p><a href='" + resetLink + "'>Reset password</a></p>" +
-                "</body></html>";
+
+        String subject = "Сброс пароля";
+        String html = "<!doctype html><html><body style='font-family:Arial,sans-serif'>"
+                + "<h2>Сброс пароля</h2>"
+                + "<p>Здравствуйте!</p>"
+                + "<p>Нажмите на ссылку ниже, чтобы установить новый пароль:</p>"
+                + "<p><a href='" + resetLink + "'>Сбросить пароль</a></p>"
+                + "</body></html>";
 
         // вызов основного метода (3 аргумента)
         sendPasswordResetEmail(toEmail, subject, html);

@@ -1,11 +1,8 @@
 package com.bankx.notification.model.dto;
 
-import com.bankx.notification.model.UserEventType;
-
 public class UserPasswordResetRequestedEvent {
 
     private String eventId;                 // для идемпотентности (может быть null)
-    private UserEventType type;             // МОЖЕТ отсутствовать в двух-топиковой схеме
     private String email;
     private String firstName;
     private String lastName;
@@ -15,8 +12,6 @@ public class UserPasswordResetRequestedEvent {
 
     public String getEventId() { return eventId; }
     public void setEventId(String eventId) { this.eventId = eventId; }
-    public UserEventType getType() { return type; }
-    public void setType(UserEventType type) { this.type = type; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
     public String getFirstName() { return firstName; }
