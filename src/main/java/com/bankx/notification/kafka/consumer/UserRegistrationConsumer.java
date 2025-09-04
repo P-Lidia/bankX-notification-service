@@ -145,6 +145,7 @@ public class UserRegistrationConsumer {
             System.err.println("=== FAILED TO INITIALIZE KAFKA CONSUMER ===");
             System.err.println("Error: " + e.getMessage());
             e.printStackTrace();
+            throw new RuntimeException("Failed to initialize Kafka consumer", e);
         }
     }
 
