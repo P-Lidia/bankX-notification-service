@@ -1,5 +1,7 @@
 package com.bankx.notification.config;
 
+import com.mongodb.ConnectionString;
+import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import jakarta.annotation.PostConstruct;
@@ -7,6 +9,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Disposes;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
+import org.bson.codecs.configuration.CodecRegistries;
+import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.codecs.pojo.PojoCodecProvider;
+import org.jboss.logging.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,6 +20,8 @@ import java.util.Properties;
 
 @ApplicationScoped
 public class MongoConfig {
+
+    private static final org.jboss.logging.Logger LOGGER = Logger.getLogger(MongoConfig.class);
 
     @Inject
     private ApplicationConfig appConfig;
@@ -23,17 +31,43 @@ public class MongoConfig {
 
     @PostConstruct
     public void init() {
-        connectionString = appConfig.getProperty("mongodb.connection.string", "mongodb://mongodb:27017/notificationdb");
-        databaseName = appConfig.getProperty("mongodb.database", "notificationdb");
+        connectionString = appConfig.getProperty("mongodb.connection.string", "mongodb://admin:password@mongodb:27017/bankx-notification?authSource=admin");
+        databaseName = appConfig.getProperty("mongodb.database", "bankx-notification");
+
+        LOGGER.infov("MongoDB configuration initialized. Database: {0}", databaseName);
     }
 
     @Produces
+    @ApplicationScoped
     public MongoClient createMongoClient() {
-        return MongoClients.create(connectionString);
+        try {
+            LOGGER.info("Creating MongoClient with POJO support");
+
+            // Настройка CodecRegistry для поддержки POJO
+            CodecRegistry pojoCodecRegistry = CodecRegistries.fromRegistries(
+                    MongoClientSettings.getDefaultCodecRegistry(),
+                    CodecRegistries.fromProviders(PojoCodecProvider.builder().automatic(true).build())
+            );
+
+            MongoClientSettings settings = MongoClientSettings.builder()
+                    .applyConnectionString(new ConnectionString(connectionString))
+                    .codecRegistry(pojoCodecRegistry)
+                    .build();
+
+            return MongoClients.create(settings);
+        } catch (Exception e) {
+            LOGGER.error("Failed to create MongoClient: " + e.getMessage());
+            throw new RuntimeException("Failed to create MongoClient", e);
+        }
     }
 
     public void closeMongoClient(@Disposes MongoClient client) {
-        client.close();
+        try {
+            client.close();
+            LOGGER.info("MongoClient closed successfully");
+        } catch (Exception e) {
+            LOGGER.warnv("Error closing MongoClient: {0}", e.getMessage());
+        }
     }
 
     public String getDatabaseName() {

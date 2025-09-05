@@ -4,6 +4,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 public class UserEvent {
+    private String eventId;
     private UUID activationKey;
     private String email;
     private String firstName;
@@ -25,6 +26,9 @@ public class UserEvent {
         this.activationKey = activationKey;
     }
 
+    public String getEventId() { return eventId; }
+
+    public void setEventId(String eventId) { this.eventId = eventId; }
 
     public UUID getActivationKey() {
         return activationKey;
