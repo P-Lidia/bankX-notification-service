@@ -9,23 +9,17 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Disposes;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
+import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 import org.jboss.logging.Logger;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
-
 @ApplicationScoped
 public class MongoConfig {
-
     private static final org.jboss.logging.Logger LOGGER = Logger.getLogger(MongoConfig.class);
-
     @Inject
     private ApplicationConfig appConfig;
-
     private String connectionString;
     private String databaseName;
 
@@ -33,7 +27,6 @@ public class MongoConfig {
     public void init() {
         connectionString = appConfig.getProperty("mongodb.connection.string", "mongodb://admin:password@mongodb:27017/bankx-notification?authSource=admin");
         databaseName = appConfig.getProperty("mongodb.database", "bankx-notification");
-
         LOGGER.infov("MongoDB configuration initialized. Database: {0}", databaseName);
     }
 
@@ -42,18 +35,15 @@ public class MongoConfig {
     public MongoClient createMongoClient() {
         try {
             LOGGER.info("Creating MongoClient with POJO support");
-
-            // Настройка CodecRegistry для поддержки POJO
             CodecRegistry pojoCodecRegistry = CodecRegistries.fromRegistries(
                     MongoClientSettings.getDefaultCodecRegistry(),
                     CodecRegistries.fromProviders(PojoCodecProvider.builder().automatic(true).build())
             );
-
             MongoClientSettings settings = MongoClientSettings.builder()
                     .applyConnectionString(new ConnectionString(connectionString))
                     .codecRegistry(pojoCodecRegistry)
+                    .uuidRepresentation(UuidRepresentation.STANDARD)
                     .build();
-
             return MongoClients.create(settings);
         } catch (Exception e) {
             LOGGER.error("Failed to create MongoClient: " + e.getMessage());
