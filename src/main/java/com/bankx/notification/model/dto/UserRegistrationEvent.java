@@ -3,32 +3,30 @@ package com.bankx.notification.model.dto;
 import java.util.Objects;
 import java.util.UUID;
 
-public class UserEvent {
+public class UserRegistrationEvent {
     private String eventId;
     private UUID activationKey;
     private String email;
     private String firstName;
     private String lastName;
 
-    public UserEvent() {
+    public UserRegistrationEvent() {
     }
 
-/*    // todo возможно придется переделать название параметра activationKey
-    public UserEvent(UUID activationKey) {
-        this.activationKey = activationKey;
-    }*/
-
-    //todo если понадобится полный конструктор
-    public UserEvent(String email, String firstName, String lastName, UUID activationKey) {
+    public UserRegistrationEvent(String email, String firstName, String lastName, UUID activationKey) {
         this.email = email;
         this.firstName = firstName;
         this.lastName = lastName;
         this.activationKey = activationKey;
     }
 
-    public String getEventId() { return eventId; }
+    public String getEventId() {
+        return eventId;
+    }
 
-    public void setEventId(String eventId) { this.eventId = eventId; }
+    public void setEventId(String eventId) {
+        this.eventId = eventId;
+    }
 
     public UUID getActivationKey() {
         return activationKey;
@@ -64,12 +62,12 @@ public class UserEvent {
 
     @Override
     public String toString() {
-        return "UserEvent{" +
-               "activationKey=" + activationKey +
-               ", email='" + email + '\'' +
-               ", firstName='" + firstName + '\'' +
-               ", lastName='" + lastName + '\'' +
-               '}';
+        return "UserRegistrationEvent{" +
+                "activationKey=" + activationKey +
+                ", email='" + email + '\'' +
+                ", firstName='" + firstName + '\'' +
+                ", lastName='" + lastName + '\'' +
+                '}';
     }
 
     @Override
@@ -81,10 +79,10 @@ public class UserEvent {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        UserEvent userEvent = (UserEvent) o;
+        UserRegistrationEvent userEvent = (UserRegistrationEvent) o;
         return Objects.equals(activationKey, userEvent.activationKey) &&
-               Objects.equals(email, userEvent.email) &&
-               Objects.equals(firstName, userEvent.firstName) &&
-               Objects.equals(lastName, userEvent.lastName);
+                Objects.equals(email, userEvent.email) &&
+                Objects.equals(firstName, userEvent.firstName) &&
+                Objects.equals(lastName, userEvent.lastName);
     }
 }
