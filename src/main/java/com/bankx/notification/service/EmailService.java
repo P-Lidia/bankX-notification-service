@@ -1,222 +1,265 @@
 package com.bankx.notification.service;
+
+import com.bankx.notification.model.entity.EmailTemplate;
+import com.bankx.notification.repository.EmailTemplateRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-
-import jakarta.mail.Authenticator;                  // [ADDED]
-import jakarta.mail.AuthenticationFailedException; // [ADDED]
-import jakarta.mail.Message;                       // [ADDED]
-import jakarta.mail.MessagingException;            // [ADDED]
-import jakarta.mail.PasswordAuthentication;        // [ADDED]
-import jakarta.mail.Session;                       // [ADDED]
-import jakarta.mail.Transport;                     // [ADDED]
-import jakarta.mail.internet.InternetAddress;      // [ADDED]
-import jakarta.mail.internet.MimeMessage;          // [ADDED]
+import jakarta.mail.*;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeMessage;
 import com.bankx.notification.config.ApplicationConfig;
 
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Properties;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+/**
+ * Сервис для отправки электронных писем с использованием шаблонов из MongoDB.
+ *
+ * <p>Основные функции:
+ * <ul>
+ *   <li>Отправка различных типов уведомлений (активация, сброс пароля и т.д.)</li>
+ *   <li>Использование шаблонов из MongoDB с поддержкой переменных</li>
+ *   <li>Повторные попытки отправки при возникновении ошибок</li>
+ *   <li>Поддержка как текстовых, так и HTML-писем</li>
+ *   <li>Интеграция с SMTP-сервером (включая специальные настройки для Mail.ru)</li>
+ * </ul>
+ */
 @ApplicationScoped
 public class EmailService {
     private static final Logger LOG = Logger.getLogger(EmailService.class.getName());
+    private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\{\\{(\\w+)\\}\\}");
+    private static final int MAX_RETRIES = 3;
+    private static final long RETRY_DELAY_MS = 2000;
 
     @Inject
     private ApplicationConfig appConfig;
 
-    public void sendActivationEmail(String toEmail, String activationLink) {
-        String host = appConfig.getProperty("email.smtp.host");
-        String port = appConfig.getProperty("email.smtp.port");
-        String username = appConfig.getProperty("email.smtp.username");
-        String oauthToken = appConfig.getProperty("yandex.oauth.token");
-        String from = appConfig.getProperty("email.from.address", username);
-        String password = appConfig.getProperty("email.smtp.password"); // [ADDED]
+    @Inject
+    private EmailTemplateRepository templateRepository;
 
-        LOG.info("Попытка отправки письма на: " + toEmail);
+    /**
+     * Заменяет переменные в шаблоне на реальные значения.
+     *
+     * <p>Переменные в шаблоне должны быть оформлены в двойных фигурных скобках: {{variableName}}
+     *
+     * @param template шаблон текста с переменными
+     * @param variables карта значений для подстановки в шаблон
+     * @return обработанный текст с подставленными значениями
+     */
+    private String processTemplate(String template, Map<String, String> variables) {
+        Matcher matcher = VARIABLE_PATTERN.matcher(template);
+        StringBuffer result = new StringBuffer();
 
-        try {
-            // [ADDED] ---- ВЕТКА 1: если есть пароль — используем простой парольный режим ----
-            if (password != null && !password.isEmpty()) {
-                Properties properties = new Properties();
-                properties.put("mail.smtp.host", host);
-                properties.put("mail.smtp.port", port);
-                properties.put("mail.smtp.auth", "true");
-                properties.put("mail.smtp.ssl.enable", "true");
+        while (matcher.find()) {
+            String variableName = matcher.group(1);
+            String replacement = variables.get(variableName);
+            matcher.appendReplacement(result, replacement != null ? replacement : "");
+        }
+        matcher.appendTail(result);
 
-                properties.put("mail.debug", "true");
+        return result.toString();
+    }
 
-                Session session = Session.getInstance(properties, new Authenticator() {
-                    @Override
-                    protected PasswordAuthentication getPasswordAuthentication() {
-                        return new PasswordAuthentication(username, password);
-                    }
-                });
+    /**
+     * Отправляет электронное письмо на основе шаблона из MongoDB.
+     *
+     * @param templateType тип шаблона (регистрация, сброс пароля и т.д.)
+     * @param toEmail адрес получателя
+     * @param variables значения для подстановки в шаблон
+     * @throws RuntimeException если шаблон не найден или произошла ошибка отправки
+     */
+    public void sendTemplatedEmail(String templateType, String toEmail, Map<String, String> variables) {
+        EmailTemplate template = templateRepository.findByTemplateType(templateType);
 
-                Message message = new MimeMessage(session);
-                message.setFrom(new InternetAddress(from));
-                message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
-                message.setSubject("Активация аккаунта BankX");
+        if (template == null) {
+            throw new RuntimeException("Template not found: " + templateType);
+        }
 
-                String emailText = "Уважаемый пользователь,\n\n" +
-                        "для активации вашего аккаунта перейдите по ссылке:\n" +
-                        activationLink + "\n\n" +
-                        "С уважением,\nКоманда BankX";
-                message.setText(emailText);
+        String subject = processTemplate(template.getSubject(), variables);
+        String body = processTemplate(template.getBody(), variables);
 
-                Transport.send(message);
-                LOG.info("Письмо успешно отправлено (password auth) на: " + toEmail);
-                return; // [ADDED] выходим — OAuth2 не нужен
+        sendEmailWithRetry(toEmail, subject, body, false);
+    }
+
+    /**
+     * Отправляет письмо активации аккаунта.
+     *
+     * @param toEmail адрес получателя
+     * @param activationLink ссылка для активации аккаунта
+     * @param firstName имя пользователя
+     * @param lastName фамилия пользователя
+     */
+    public void sendActivationEmail(String toEmail, String activationLink, String firstName, String lastName) {
+        Map<String, String> variables = new HashMap<>();
+        variables.put("firstName", firstName);
+        variables.put("lastName", lastName);
+        variables.put("activationLink", activationLink);
+
+        sendTemplatedEmail("registration", toEmail, variables);
+    }
+
+    /**
+     * Отправляет письмо с запросом на сброс пароля.
+     *
+     * @param toEmail адрес получателя
+     * @param resetLink ссылка для сброса пароля
+     * @param firstName имя пользователя
+     * @param lastName фамилия пользователя
+     */
+    public void sendPasswordResetEmail(String toEmail, String resetLink, String firstName, String lastName) {
+        Map<String, String> variables = new HashMap<>();
+        variables.put("firstName", firstName);
+        variables.put("lastName", lastName);
+        variables.put("resetLink", resetLink);
+
+        sendTemplatedEmail("password_reset_request", toEmail, variables);
+    }
+
+    /**
+     * Отправляет уведомление об успешном сбросе пароля.
+     *
+     * @param toEmail адрес получателя
+     * @param firstName имя пользователя
+     * @param lastName фамилия пользователя
+     */
+    public void sendPasswordResetSuccessEmail(String toEmail, String firstName, String lastName) {
+        Map<String, String> variables = new HashMap<>();
+        variables.put("firstName", firstName);
+        variables.put("lastName", lastName);
+
+        sendTemplatedEmail("password_reset_success", toEmail, variables);
+    }
+
+    /**
+     * Отправляет уведомление об успешной активации аккаунта.
+     *
+     * @param toEmail адрес получателя
+     * @param firstName имя пользователя
+     * @param lastName фамилия пользователя
+     */
+    public void sendAccountActivatedEmail(String toEmail, String firstName, String lastName) {
+        Map<String, String> variables = new HashMap<>();
+        variables.put("firstName", firstName);
+        variables.put("lastName", lastName);
+
+        sendTemplatedEmail("account_activated", toEmail, variables);
+    }
+
+    /**
+     * Отправляет письмо с повторными попытками при возникновении ошибок.
+     *
+     * @param toEmail адрес получателя
+     * @param subject тема письма
+     * @param body тело письма
+     * @param isHtml флаг, указывающий на HTML-формат письма
+     */
+    private void sendEmailWithRetry(String toEmail, String subject, String body, boolean isHtml) {
+        int attempt = 0;
+        boolean success = false;
+
+        while (attempt < MAX_RETRIES && !success) {
+            attempt++;
+            try {
+                sendEmail(toEmail, subject, body, isHtml);
+                success = true;
+                LOG.info("Email successfully sent to: " + toEmail + " (attempt " + attempt + ")");
+            } catch (Exception e) {
+                LOG.warning("Failed to send email to " + toEmail + " (attempt " + attempt + "): " + e.getMessage());
+
+                if (attempt >= MAX_RETRIES) {
+                    LOG.severe("All " + MAX_RETRIES + " attempts failed for: " + toEmail);
+                    throw new RuntimeException("Failed to send email after " + MAX_RETRIES + " attempts", e);
+                }
+
+                // Задержка перед повторной попыткой
+                try {
+                    Thread.sleep(RETRY_DELAY_MS * attempt);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Email sending interrupted", ie);
+                }
             }
-
-            // [KEPT] ---- ВЕТКА 2: ваш исходный OAuth2-блок без изменений по смыслу ----
-            LOG.info("Используем OAuth2 аутентификацию");
-
-            Properties properties = new Properties();
-            properties.put("mail.smtp.host", host);
-            properties.put("mail.smtp.port", port);
-            properties.put("mail.smtp.auth", "true");
-            properties.put("mail.smtp.ssl.enable", "true");
-            properties.put("mail.smtp.socketFactory.port", port);
-            properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory"); // [KEPT]* строковое значение
-            properties.put("mail.smtp.socketFactory.fallback", "false");
-
-            // OAuth2 настройки
-            properties.put("mail.smtp.auth.mechanisms", "XOAUTH2");
-            properties.put("mail.smtp.sasl.enable", "true");
-            properties.put("mail.smtp.sasl.mechanisms", "XOAUTH2");
-            properties.put("mail.smtp.sasl.jaas.config",
-                    "com.sun.security.sasl.ClientFactory com.sun.mail.imap.IMAPProvider");
-
-            properties.put("mail.debug", "true");
-
-            Session session = Session.getInstance(properties);
-
-            Message message = new MimeMessage(session);
-            message.setFrom(new InternetAddress(from));
-            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
-            message.setSubject("Активация аккаунта BankX");
-
-            String emailText = "Уважаемый пользователь,\n\n" +
-                    "для активации вашего аккаунта перейдите по ссылке:\n" +
-                    activationLink + "\n\n" +
-                    "С уважением,\nКоманда BankX";
-            message.setText(emailText);
-
-            Transport transport = session.getTransport("smtp");
-            transport.connect(host, Integer.parseInt(port), username, oauthToken);
-            transport.sendMessage(message, message.getAllRecipients());
-            transport.close();
-
-            LOG.info("Письмо успешно отправлено (OAuth2) на: " + toEmail);
-
-        } catch (AuthenticationFailedException e) {
-            LOG.severe("Ошибка аутентификации SMTP/OAuth2: " + e.getMessage()); // [CHANGED] более общий текст
-        } catch (MessagingException e) {
-            LOG.severe("Ошибка отправки письма: " + e.getMessage());
-            e.printStackTrace();
-        } catch (Exception e) {
-            LOG.severe("Неожиданная ошибка: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
-    public void sendPasswordResetEmail(String toEmail, String subject, String htmlBody) {
+    /**
+     * Отправляет электронное письмо через SMTP-сервер.
+     *
+     * @param toEmail адрес получателя
+     * @param subject тема письма
+     * @param body тело письма
+     * @param isHtml флаг, указывающий на HTML-формат письма
+     */
+    private void sendEmail(String toEmail, String subject, String body, boolean isHtml) {
         String host = appConfig.getProperty("email.smtp.host");
         String port = appConfig.getProperty("email.smtp.port");
         String username = appConfig.getProperty("email.smtp.username");
-        String oauthToken = appConfig.getProperty("yandex.oauth.token");
         String from = appConfig.getProperty("email.from.address", username);
-        String password = appConfig.getProperty("email.smtp.password"); // [ADDED]
+        String password = appConfig.getProperty("email.smtp.password");
 
-        LOG.info("Попытка отправки письма на: " + toEmail);
+        LOG.info("Attempting to send email to: " + toEmail + " from: " + from);
+
+        // Добавляем задержку между отправками для избежания блокировки
+        try {
+            Thread.sleep(1000 + (long)(Math.random() * 1000));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Email sending interrupted", e);
+        }
 
         try {
-            // [ADDED] ---- ВЕТКА 1: парольный режим, если задан пароль ----
-            if (password != null && !password.isEmpty()) {
-                Properties properties = new Properties();
-                properties.put("mail.smtp.host", host);
-                properties.put("mail.smtp.port", port);
-                properties.put("mail.smtp.auth", "true");
-                properties.put("mail.smtp.ssl.enable", "true");
-                properties.put("mail.debug", "true");
-
-                Session session = Session.getInstance(properties, new Authenticator() {
-                    @Override
-                    protected PasswordAuthentication getPasswordAuthentication() {
-                        return new PasswordAuthentication(username, password);
-                    }
-                });
-
-                MimeMessage message = new MimeMessage(session);
-                message.setFrom(new InternetAddress(from));
-                message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
-                message.setSubject(subject, "UTF-8");
-                message.setContent(htmlBody, "text/html; charset=UTF-8");
-
-                Transport.send(message);
-                LOG.info("Письмо успешно отправлено (password auth) на: " + toEmail);
-                return; // [ADDED]
-            }
-
-            // [KEPT] ---- ВЕТКА 2: исходный OAuth2-блок ----
-            LOG.info("Используем OAuth2 аутентификацию");
-
             Properties properties = new Properties();
             properties.put("mail.smtp.host", host);
             properties.put("mail.smtp.port", port);
             properties.put("mail.smtp.auth", "true");
             properties.put("mail.smtp.ssl.enable", "true");
-            properties.put("mail.smtp.socketFactory.port", port);
-            properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory"); // [KEPT]*
-            properties.put("mail.smtp.socketFactory.fallback", "false");
-
-            // OAuth2 настройки
-            properties.put("mail.smtp.auth.mechanisms", "XOAUTH2");
-            properties.put("mail.smtp.sasl.enable", "true");
-            properties.put("mail.smtp.sasl.mechanisms", "XOAUTH2");
-            properties.put("mail.smtp.sasl.jaas.config",
-                    "com.sun.security.sasl.ClientFactory com.sun.mail.imap.IMAPProvider");
-
+            properties.put("mail.smtp.starttls.enable", "true"); // Для Mail.ru
+            properties.put("mail.smtp.ssl.trust", host); // Доверяем хосту
             properties.put("mail.debug", "true");
 
-            Session session = Session.getInstance(properties);
+            // Особые настройки для Mail.ru
+            properties.put("mail.smtp.socketFactory.port", port);
+            properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+            properties.put("mail.smtp.socketFactory.fallback", "false");
+
+            Session session = Session.getInstance(properties, new Authenticator() {
+                @Override
+                protected PasswordAuthentication getPasswordAuthentication() {
+                    return new PasswordAuthentication(username, password);
+                }
+            });
 
             MimeMessage message = new MimeMessage(session);
             message.setFrom(new InternetAddress(from));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
             message.setSubject(subject, "UTF-8");
-            message.setContent(htmlBody, "text/html; charset=UTF-8");
 
-            Transport transport = session.getTransport("smtp");
-            transport.connect(host, Integer.parseInt(port), username, oauthToken);
-            transport.sendMessage(message, message.getAllRecipients());
-            transport.close();
+            // Добавляем важные заголовки для уменьшения вероятности попадания в спам
+            message.addHeader("Precedence", "bulk");
+            message.addHeader("X-Mailer", "BankX Notification Service");
+            message.addHeader("List-Unsubscribe", "<mailto:support@bankx.com>");
 
-            LOG.info("Письмо успешно отправлено (OAuth2) на: " + toEmail);
+            if (isHtml) {
+                message.setContent(body, "text/html; charset=UTF-8");
+            } else {
+                message.setText(body, "UTF-8");
+            }
+
+            Transport.send(message);
+            LOG.info("Email successfully delivered to SMTP server for: " + toEmail);
         } catch (AuthenticationFailedException e) {
-            LOG.severe("Ошибка аутентификации SMTP/OAuth2: " + e.getMessage()); // [CHANGED]
-            throw new RuntimeException(e);
+            LOG.severe("SMTP authentication error: " + e.getMessage());
+            throw new RuntimeException("SMTP authentication failed", e);
         } catch (MessagingException e) {
-            LOG.severe("Ошибка отправки письма: " + e.getMessage());
-            throw new RuntimeException(e);
+            LOG.severe("Email sending error: " + e.getMessage());
+            throw new RuntimeException("Failed to send email", e);
         } catch (Exception e) {
-            LOG.severe("Неожиданная ошибка: " + e.getMessage());
-            throw new RuntimeException(e);
+            LOG.severe("Unexpected error: " + e.getMessage());
+            throw new RuntimeException("Unexpected error occurred", e);
         }
     }
-
-    public void sendPasswordResetEmail(String toEmail, String resetLink) {
-        String subject = "Сброс пароля";
-        String html = "<!doctype html><html><body style='font-family:Arial,sans-serif'>"
-                + "<h2>Сброс пароля</h2>"
-                + "<p>Здравствуйте!</p>"
-                + "<p>Нажмите на ссылку ниже, чтобы установить новый пароль:</p>"
-                + "<p><a href='" + resetLink + "'>Сбросить пароль</a></p>"
-                + "</body></html>";
-
-        sendPasswordResetEmail(toEmail, subject, html);
-    }
 }
-
-
-
-

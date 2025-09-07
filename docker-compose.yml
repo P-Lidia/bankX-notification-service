@@ -1,61 +1,62 @@
-version: '3.8'
-
 services:
+  # Сервис MongoDB для хранения данных приложения
   mongodb:
     image: mongo:latest
     container_name: bankx-mongodb
     ports:
-      - "27017:27017"
+      - "27017:27017"  # Пробрасываем порт MongoDB для доступа с хоста
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
-      MONGO_INITDB_DATABASE: bankx-notification
+      MONGO_INITDB_ROOT_USERNAME: admin      # Имя пользователя для root-доступа
+      MONGO_INITDB_ROOT_PASSWORD: password    # Пароль для root-доступа
+      MONGO_INITDB_DATABASE: bankx-notification  # База данных по умолчанию
     volumes:
-      - mongodb_data:/data/db
+      - mongodb_data:/data/db  # Постоянное хранилище для данных MongoDB
     networks:
-      - bankx-network
+      - bankx-network  # Подключаем к сети приложения
     healthcheck:
       test: ["CMD", "mongosh", "-u", "admin", "-p", "password", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 10
 
+  # Сервис Zookeeper - требуется для работы Kafka
   zookeeper:
     image: bitnami/zookeeper:3.8
     container_name: bankx-zookeeper
     ports:
-      - "2181:2181"
+      - "2181:2181"  # Пробрасываем порт Zookeeper
     environment:
-      ALLOW_ANONYMOUS_LOGIN: "yes"
-      ZOO_ENABLE_AUTH: "no"
+      ALLOW_ANONYMOUS_LOGIN: "yes"  # Разрешаем анонимный доступ
+      ZOO_ENABLE_AUTH: "no"         # Отключаем аутентификацию
     networks:
       - bankx-network
     healthcheck:
-      test: ["CMD", "bash", "-c", "echo 'ruok' | nc localhost 2181"]
+      test: ["CMD", "bash", "-c", "echo 'ruok' | nc localhost 2181"]  # Проверка здоровья Zookeeper
       interval: 10s
       timeout: 5s
       retries: 10
 
+  # Сервис Kafka для обработки сообщений и событий
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     container_name: bankx-kafka
     ports:
-      - "9092:9092"
-      - "29092:29092"
+      - "9092:9092"    # Порт для внутреннего взаимодействия
+      - "29092:29092"  # Порт для доступа с хоста
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181  # Подключение к Zookeeper
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"  # Запрещаем автоматическое создание топиков
       KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer=INFO,kafka.consumer=INFO,kafka=INFO"
       KAFKA_LOG4J_ROOT_LOGLEVEL: "INFO"
       KAFKA_LOG4J_APPENDER: "stdout"
     depends_on:
       zookeeper:
-        condition: service_healthy
+        condition: service_healthy  # Зависимость от здорового Zookeeper
     networks:
       - bankx-network
     healthcheck:
@@ -64,61 +65,66 @@ services:
       timeout: 5s
       retries: 20
 
+  # Сервис для инициализации топиков Kafka
   kafka-topics:
     image: confluentinc/cp-kafka:7.4.0
     container_name: bankx-kafka-topics
     depends_on:
       kafka:
-        condition: service_healthy
+        condition: service_healthy  # Зависимость от здорового Kafka
     networks:
       - bankx-network
     volumes:
-      - ./scripts:/scripts
+      - ./scripts:/scripts  # Монтируем директорию со скриптами инициализации
     environment:
       KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer=INFO,kafka.consumer=INFO,kafka=INFO"
       KAFKA_LOG4J_ROOT_LOGLEVEL: "INFO"
       KAFKA_LOG4J_APPENDER: "stdout"
-    entrypoint: ["/bin/bash", "-c", "sleep 15 && /scripts/create-kafka-topics.sh"]
+    entrypoint: ["/bin/bash", "-c", "sleep 15 && /scripts/create-kafka-topics.sh"]  # Задержка и запуск скрипта
 
+  # Сервис для инициализации MongoDB
   mongo-init:
     image: mongo:latest
     container_name: bankx-mongo-init
     depends_on:
       mongodb:
-        condition: service_healthy
+        condition: service_healthy  # Зависимость от здорового MongoDB
     networks:
       - bankx-network
     volumes:
-      - ./scripts:/scripts
-    entrypoint: ["/bin/bash", "/scripts/init-mongo.sh"]
+      - ./scripts:/scripts  # Монтируем директорию со скриптами инициализации
+    entrypoint: ["/bin/bash", "/scripts/init-mongo.sh"]  # Запуск скрипта инициализации
 
+  # Основной сервис приложения на WildFly
   wildfly:
     build:
       context: .
-      dockerfile: .docker/Dockerfile
+      dockerfile: .docker/Dockerfile  # Путь к Dockerfile для сборки образа
     container_name: bankx-wildfly
     ports:
-      - "8080:8080"
-      - "9990:9990"
+      - "8080:8080"  # Порт приложения
+      - "9990:9990"  # Порт административной консоли WildFly
     environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - MONGO_HOST=mongodb
-      - MONGO_PORT=27017
-      - JAVA_OPTS=-Xms256m -Xmx512m
-      - MONGO_USERNAME=appuser
-      - MONGO_PASSWORD=apppassword
-      - MONGO_DATABASE=bankx-notification
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092  # Адрес Kafka-брокера
+      - MONGO_HOST=mongodb                  # Хост MongoDB
+      - MONGO_PORT=27017                    # Порт MongoDB
+      - JAVA_OPTS=-Xms256m -Xmx512m         # Параметры JVM
+      - MONGO_USERNAME=appuser              # Имя пользователя MongoDB
+      - MONGO_PASSWORD=apppassword          # Пароль пользователя MongoDB
+      - MONGO_DATABASE=bankx-notification   # Имя базы данных
     depends_on:
       mongodb:
-        condition: service_healthy
+        condition: service_healthy  # Зависимость от здорового MongoDB
       kafka:
-        condition: service_healthy
+        condition: service_healthy  # Зависимость от здорового Kafka
     networks:
       - bankx-network
 
+# Определение томов для постоянного хранения данных
 volumes:
-  mongodb_data:
+  mongodb_data:  # Том для хранения данных MongoDB
 
+# Определение сети для взаимодействия между контейнерами
 networks:
   bankx-network:
-    driver: bridge
+    driver: bridge  # Используем bridge-драйвер для сети
