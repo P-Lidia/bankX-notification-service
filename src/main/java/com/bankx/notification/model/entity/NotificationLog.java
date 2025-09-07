@@ -1,11 +1,16 @@
 package com.bankx.notification.model.entity;
 
-
 import org.bson.codecs.pojo.annotations.BsonProperty;
 import org.bson.types.ObjectId;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Сущность, представляющая лог уведомления в MongoDB.
+ *
+ * <p>Содержит информацию об отправленных уведомлениях, включая статус отправки,
+ * количество попыток и информацию об ошибках (если были).
+ */
 public class NotificationLog {
     private ObjectId id;
 
@@ -39,12 +44,25 @@ public class NotificationLog {
     @BsonProperty("attempt_count")
     private int attemptCount;
 
+    /**
+     * Конструктор по умолчанию.
+     * Устанавливает значения по умолчанию для статуса, времени создания и счетчика попыток.
+     */
     public NotificationLog() {
         this.createdAt = LocalDateTime.now();
         this.status = "PENDING";
         this.attemptCount = 0;
     }
 
+    /**
+     * Конструктор с параметрами для создания лога уведомления.
+     *
+     * @param activationKey ключ активации
+     * @param eventType тип события
+     * @param email адрес электронной почты
+     * @param createdAt время создания
+     * @param errorMessage сообщение об ошибке
+     */
     public NotificationLog(UUID activationKey, String eventType,
                            String email, LocalDateTime createdAt, String errorMessage) {
         this.activationKey = activationKey;
@@ -90,5 +108,8 @@ public class NotificationLog {
     public int getAttemptCount() { return attemptCount; }
     public void setAttemptCount(int attemptCount) { this.attemptCount = attemptCount; }
 
+    /**
+     * Увеличивает счетчик попыток отправки на 1.
+     */
     public void incrementAttemptCount() { this.attemptCount++; }
 }
