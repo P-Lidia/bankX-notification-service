@@ -45,8 +45,8 @@ db.createCollection('email_templates');
 
 db.email_templates.insertOne({
   templateType: "registration",
-  subject: "Активация аккаунта в BankX",
-  body: "Уважаемый(ая) {{firstName}} {{lastName}}, для активации вашего аккаунта перейдите по ссылке: {{activationLink}}",
+  subject: "Из монго Активация аккаунта в BankX",
+  body: "Из монго Уважаемый(ая) {{firstName}} {{lastName}}, для активации вашего аккаунта перейдите по ссылке: {{activationLink}}",
   variables: ["firstName", "lastName", "activationLink"],
   isActive: true,
   createdAt: new Date(),
@@ -54,10 +54,30 @@ db.email_templates.insertOne({
 });
 
 db.email_templates.insertOne({
-  templateType: "password_reset",
-  subject: "Восстановление пароля в BankX",
+  templateType: "password_reset_request",
+  subject: "Запрос на сброс пароля BankX",
   body: "Уважаемый(ая) {{firstName}} {{lastName}}! Для восстановления пароля перейдите по ссылке: {{resetLink}}",
   variables: ["firstName", "lastName", "resetLink"],
+  isActive: true,
+  createdAt: new Date(),
+  updatedAt: new Date()
+});
+
+db.email_templates.insertOne({
+  templateType: "password_reset_success",
+  subject: "Пароль BankX изменен",
+  body: "Уважаемый(ая) {{firstName}} {{lastName}}, ваш пароль был изменен",
+  variables: ["firstName", "lastName"],
+  isActive: true,
+  createdAt: new Date(),
+  updatedAt: new Date()
+});
+
+db.email_templates.insertOne({
+  templateType: "account_activated",
+  subject: "Успешная регистрация в BankX",
+  body: "Уважаемый(ая) {{firstName}} {{lastName}}, поздравляем вас с успешной регистрацией в BankX! ",
+  variables: ["firstName", "lastName"],
   isActive: true,
   createdAt: new Date(),
   updatedAt: new Date()
