@@ -4,64 +4,80 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <!-- Основная информация о проекте -->
     <groupId>com.itgirl</groupId>
     <artifactId>bankX-notification-service</artifactId>
     <version>1.0.0</version>
-    <packaging>war</packaging>
+    <packaging>war</packaging> <!-- Упаковка как WAR для развертывания на сервере приложений -->
 
     <name>BankX Notification Service</name>
     <description>Microservice for handling notifications in BankX system</description>
 
     <properties>
+        <!-- Настройки компиляции Java -->
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <jakartaee.version>10.0.0</jakartaee.version>
-        <kafka.version>3.6.1</kafka.version>
-        <freemarker.version>2.3.32</freemarker.version>
-        <mongodb.version>4.11.1</mongodb.version>
-        <log4j2.version>2.20.0</log4j2.version>
-        <testcontainers.version>1.19.0</testcontainers.version>
-        <junit.version>5.9.0</junit.version>
-        <mockito.version>5.3.1</mockito.version>
-        <awaitility.version>4.2.0</awaitility.version>
+        <!-- Версии зависимостей -->
+        <jakartaee.version>10.0.0</jakartaee.version> <!-- Jakarta EE 10 -->
+        <kafka.version>3.6.1</kafka.version> <!-- Apache Kafka -->
+        <freemarker.version>2.3.32</freemarker.version> <!-- Шаблонизатор FreeMarker -->
+        <mongodb.version>4.11.1</mongodb.version> <!-- MongoDB драйвер -->
+        <log4j2.version>2.20.0</log4j2.version> <!-- Логирование Log4j2 -->
+        <testcontainers.version>1.19.0</testcontainers.version> <!-- Тестовые контейнеры -->
+        <junit.version>5.9.0</junit.version> <!-- JUnit 5 для тестирования -->
+        <mockito.version>5.3.1</mockito.version> <!-- Mockito для мокинг-тестов -->
+        <awaitility.version>4.2.0</awaitility.version> <!-- Awaitility для асинхронных тестов -->
     </properties>
 
     <dependencies>
+        <!-- Jakarta EE API - предоставляет спецификации Java EE -->
         <dependency>
             <groupId>jakarta.platform</groupId>
             <artifactId>jakarta.jakartaee-api</artifactId>
             <version>${jakartaee.version}</version>
-            <scope>provided</scope>
+            <scope>provided</scope> <!-- Предоставляется сервером приложений -->
         </dependency>
+
+        <!-- Клиент для работы с Apache Kafka -->
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
             <version>${kafka.version}</version>
         </dependency>
+
+        <!-- Синхронный драйвер для MongoDB -->
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongodb-driver-sync</artifactId>
             <version>${mongodb.version}</version>
         </dependency>
+
+        <!-- BSON библиотека для работы с MongoDB -->
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>bson</artifactId>
             <version>4.10.2</version>
         </dependency>
+
+        <!-- Логирование JBoss (предоставляется сервером) -->
         <dependency>
             <groupId>org.jboss.logging</groupId>
             <artifactId>jboss-logging</artifactId>
             <version>3.4.3.Final</version>
             <scope>provided</scope>
         </dependency>
+
+        <!-- Шаблонизатор FreeMarker для генерации контента -->
         <dependency>
             <groupId>org.freemarker</groupId>
             <artifactId>freemarker</artifactId>
             <version>${freemarker.version}</version>
         </dependency>
+
+        <!-- Log4j2 API и реализация для логирования -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-api</artifactId>
@@ -72,17 +88,24 @@
             <artifactId>log4j-core</artifactId>
             <version>${log4j2.version}</version>
         </dependency>
+
+        <!-- Jakarta Mail API для отправки электронной почты -->
         <dependency>
             <groupId>com.sun.mail</groupId>
             <artifactId>jakarta.mail</artifactId>
             <version>2.0.1</version>
         </dependency>
+
+        <!-- Jackson Databind для JSON сериализации/десериализации -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>2.14.2</version>
         </dependency>
 
+        <!-- ТЕСТОВЫЕ ЗАВИСИМОСТИ -->
+
+        <!-- JUnit 5 API и движок для тестирования -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
@@ -95,6 +118,8 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Testcontainers для интеграционного тестирования с Docker -->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
@@ -113,6 +138,8 @@
             <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Mockito для создания mock-объектов в тестах -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
@@ -125,6 +152,8 @@
             <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- Awaitility для тестирования асинхронного кода -->
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
@@ -134,8 +163,9 @@
     </dependencies>
 
     <build>
-        <finalName>bankx-notification</finalName>
+        <finalName>bankx-notification</finalName> <!-- Имя итогового WAR-файла -->
         <plugins>
+            <!-- Плагин компиляции с поддержкой параметров методов -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -144,44 +174,49 @@
                     <source>${maven.compiler.source}</source>
                     <target>${maven.compiler.target}</target>
                     <compilerArgs>
-                        <arg>-parameters</arg>
+                        <arg>-parameters</arg> <!-- Сохранять имена параметров методов -->
                     </compilerArgs>
                 </configuration>
             </plugin>
+
+            <!-- Плагин для сборки WAR-архива -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-war-plugin</artifactId>
                 <version>3.3.2</version>
                 <configuration>
-                    <failOnMissingWebXml>false</failOnMissingWebXml>
-                    <packagingExcludes>**/persistence.xml</packagingExcludes>
+                    <failOnMissingWebXml>false</failOnMissingWebXml> <!-- Не требовать web.xml -->
+                    <packagingExcludes>**/persistence.xml</packagingExcludes> <!-- Исключить файлы persistence.xml -->
                 </configuration>
             </plugin>
+
+            <!-- Плагин для запуска тестов -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.1.2</version>
                 <configuration>
-                    <skipTests>false</skipTests>
+                    <skipTests>false</skipTests> <!-- Не пропускать тесты -->
                 </configuration>
             </plugin>
         </plugins>
     </build>
 
+    <!-- Профили Maven для разных окружений -->
     <profiles>
         <profile>
-            <id>dev</id>
+            <id>dev</id> <!-- Профиль разработки -->
             <activation>
-                <activeByDefault>true</activeByDefault>
+                <activeByDefault>true</activeByDefault> <!-- Активен по умолчанию -->
             </activation>
             <properties>
-                <env>dev</env>
+                <env>dev</env> <!-- Переменная окружения -->
             </properties>
         </profile>
         <profile>
-            <id>prod</id>
+            <id>prod</id> <!-- Профиль продакшена -->
             <properties>
-                <env>prod</env>
+                <env>prod</env> <!-- Переменная окружения -->
             </properties>
         </profile>
     </profiles>

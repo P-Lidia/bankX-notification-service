@@ -9,15 +9,31 @@ import org.apache.kafka.common.serialization.StringSerializer;
 
 import java.util.Properties;
 
+/**
+ * Конфигурационный класс для настройки производителей Kafka.
+ *
+ * <p>Создает и настраивает экземпляр {@link KafkaProducer} для отправки сообщений в Kafka.
+ */
 @ApplicationScoped
 public class KafkaProducerConfig {
 
     @Inject
     private ApplicationConfig appConfig;
 
+    /**
+     * Создает и возвращает настроенного производителя Kafka.
+     *
+     * <p>Производитель настроен на использование:
+     * <ul>
+     *   <li>Адресов брокеров из конфигурации приложения</li>
+     *   <li>Стринговых сериализаторов для ключей и значений</li>
+     * </ul>
+     *
+     * @return настроенный экземпляр {@link KafkaProducer}
+     */
     @Produces
     @ApplicationScoped
-    public KafkaProducer<String, String> createProducer() {
+    public KafkaProducer<String, String> createKafkaProducer() {
         Properties properties = new Properties();
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
                 appConfig.getProperty("kafka.bootstrap.servers", "kafka:9092"));

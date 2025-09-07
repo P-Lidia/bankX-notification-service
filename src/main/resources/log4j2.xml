@@ -1,26 +1,73 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Конфигурация Log4j2 для сервиса уведомлений BankX -->
 <Configuration status="WARN">
+    <!--
+        status="WARN" - уровень логирования для внутренних событий Log4j2
+        WARN означает, что будут отображаться только предупреждения и ошибки самой системы логирования
+    -->
+
+    <!-- Appenders - определяют куда будут направляться логи -->
     <Appenders>
+        <!-- Console Appender - вывод логов в консоль -->
         <Console name="Console" target="SYSTEM_OUT">
+            <!-- PatternLayout - формат вывода логов -->
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+            <!--
+                %d{HH:mm:ss.SSS} - время в формате часы:минуты:секунды.миллисекунды
+                [%t] - имя потока в квадратных скобках
+                %-5level - уровень логирования, выравнивание по левому краю шириной 5 символов
+                %logger{36} - имя логгера (максимум 36 символов)
+                %msg%n - сообщение и перевод строки
+            -->
         </Console>
+
+        <!-- File Appender - запись логов в файл -->
         <File name="File" fileName="logs/notification-service.log">
             <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+            <!--
+                Формат аналогичен консольному, но с полной датой (год-месяц-день)
+                Файл будет создаваться в директории logs/notification-service.log
+            -->
         </File>
     </Appenders>
+
+    <!-- Loggers - определяют какие логи и куда отправлять -->
     <Loggers>
+        <!-- Логгер для пакета com.bankx.notification с уровнем debug -->
         <Logger name="com.bankx.notification" level="debug" additivity="false">
-            <AppenderRef ref="Console"/>
-            <AppenderRef ref="File"/>
+            <!--
+                level="debug" - записывать все события уровня DEBUG и выше
+                additivity="false" - не наследовать appenders от родительских логгеров
+            -->
+            <AppenderRef ref="Console"/> <!-- Отправлять логи в консоль -->
+            <AppenderRef ref="File"/>    <!-- Отправлять логи в файл -->
         </Logger>
+
+        <!-- Логгер для Apache Kafka с уровнем info -->
         <Logger name="org.apache.kafka" level="info" additivity="false">
-            <AppenderRef ref="Console"/>
+            <!--
+                level="info" - записывать события уровня INFO и выше (пропускает DEBUG)
+                Это уменьшает объем логов от Kafka, оставляя только важную информацию
+            -->
+            <AppenderRef ref="Console"/> <!-- Только в консоль -->
         </Logger>
+
+        <!-- Логгер для MongoDB драйвера с уровнем warn -->
         <Logger name="org.mongodb" level="warn" additivity="false">
-            <AppenderRef ref="Console"/>
+            <!--
+                level="warn" - записывать только WARN и ERROR события
+                Это значительно уменьшает объем логов от MongoDB драйвера
+            -->
+            <AppenderRef ref="Console"/> <!-- Только в консоль -->
         </Logger>
+
+        <!-- Корневой логгер - обрабатывает все остальные логи -->
         <Root level="error">
-            <AppenderRef ref="Console"/>
+            <!--
+                level="error" - записывать только ERROR события для всех остальных компонентов
+                Это предотвращает захламление логов сообщениями от сторонних библиотек
+            -->
+            <AppenderRef ref="Console"/> <!-- Только в консоль -->
         </Root>
     </Loggers>
 </Configuration>

@@ -24,39 +24,91 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
+/**
+ * Потребитель Kafka для обработки событий сброса пароля пользователей.
+ *
+ * <p>Основные функции:
+ * <ul>
+ *   <li>Подписка на топик сброса пароля пользователей</li>
+ *   <li>Обработка сообщений о запросах сброса пароля</li>
+ *   <li>Десериализация событий сброса пароля</li>
+ *   <li>Передача событий в NotificationService для обработки</li>
+ * </ul>
+ *
+ * <p>Класс работает в singleton-режиме и запускается автоматически при старте приложения.
+ */
 @Singleton
 @Startup
 public class UserResetPasswordConsumer {
     private static final Logger log = Logger.getLogger(UserResetPasswordConsumer.class.getName());
+
     @Inject
     private NotificationService notificationService;
+
     @Inject
     private KafkaConsumerConfig kafkaConsumerConfig;
+
     @Inject
     private KafkaTopicConfig kafkaTopicConfig;
-    private final ObjectMapper mapper = new ObjectMapper()
+
+    private final ObjectMapper objectMapper = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
     private ExecutorService executorService;
     private volatile boolean running = false;
     private KafkaConsumer<String, String> consumer;
 
+    /**
+     * Инициализирует потребителя Kafka для обработки событий сброса пароля.
+     *
+     * <p>Метод выполняет следующие действия:
+     * <ol>
+     *   <li>Получает настройки потребителя из конфигурации</li>
+     *   <li>Ожидает создания топика, если он еще не существует</li>
+     *   <li>Создает и настраивает экземпляр KafkaConsumer</li>
+     *   <li>Подписывается на топик сброса пароля пользователей</li>
+     *   <li>Запускает поток для опроса сообщений</li>
+     * </ol>
+     *
+     * @throws RuntimeException если не удалось инициализировать потребителя
+     */
     @PostConstruct
-    public void init() {
-        Properties props = kafkaConsumerConfig.getConsumerProperties(
-                "notification-service-reset-group"
-        );
-        String topic = kafkaTopicConfig.getUserPasswordTopic();
-        waitForTopic(topic, props);
-        consumer = new KafkaConsumer<>(props);
-        consumer.subscribe(Collections.singletonList(topic));
-        running = true;
-        executorService = Executors.newSingleThreadExecutor();
-        executorService.execute(this::poll);
-        log.info("Started PasswordResetConsumer for topic: " + topic);
+    public void initializeConsumer() {
+        try {
+            Properties consumerProps = kafkaConsumerConfig.getConsumerProperties(
+                    "notification-service-reset-group"
+            );
+
+            String topic = kafkaTopicConfig.getUserPasswordTopic();
+            waitForTopicCreation(topic, consumerProps);
+
+            consumer = new KafkaConsumer<>(consumerProps);
+            consumer.subscribe(Collections.singletonList(topic));
+
+            running = true;
+            executorService = Executors.newSingleThreadExecutor();
+            executorService.execute(this::pollForMessages);
+
+            log.info("Started PasswordResetConsumer for topic: " + topic);
+        } catch (Exception e) {
+            log.severe("Failed to initialize PasswordResetConsumer: " + e.getMessage());
+            throw new RuntimeException("Failed to initialize PasswordResetConsumer", e);
+        }
     }
 
-    private void waitForTopic(String topic, Properties props) {
-        try (AdminClient adminClient = AdminClient.create(props)) {
+    /**
+     * Ожидает создания топика в Kafka.
+     *
+     * <p>Метод периодически проверяет существование топика до его появления.
+     * Это необходимо для случаев, когда потребитель запускается раньше топика.
+     *
+     * @param topic название топика
+     * @param consumerProps свойства потребителя для подключения к Kafka
+     * @throws InterruptedException если поток был прерван во время ожидания
+     * @throws RuntimeException если произошла ошибка при проверке топика
+     */
+    private void waitForTopicCreation(String topic, Properties consumerProps) throws InterruptedException {
+        try (AdminClient adminClient = AdminClient.create(consumerProps)) {
             boolean topicExists = false;
             while (!topicExists) {
                 ListTopicsResult topics = adminClient.listTopics();
@@ -74,34 +126,68 @@ public class UserResetPasswordConsumer {
         }
     }
 
-    private void poll() {
+    /**
+     * Опрашивает Kafka на наличие новых сообщений о сбросе пароля.
+     *
+     * <p>Метод работает в бесконечном цикле, пока running = true.
+     * Для каждого полученного сообщения:
+     * <ol>
+     *   <li>Десериализует сообщение в объект UserResetPasswordEvent</li>
+     *   <li>Передает событие в NotificationService для обработки</li>
+     *   <li>Логирует успешную обработку или ошибки</li>
+     * </ol>
+     */
+    private void pollForMessages() {
         try {
             while (running) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
-                records.forEach(rec -> {
+
+                records.forEach(record -> {
                     try {
-                        UserResetPasswordEvent e =
-                                mapper.readValue(rec.value(), UserResetPasswordEvent.class);
-                        log.info("Received password reset event: " + e.getEmail());
-                        notificationService.processPasswordReset(e);
-                    } catch (Exception ex) {
-                        log.severe("Error processing reset message: " + ex.getMessage());
+                        UserResetPasswordEvent resetEvent = objectMapper.readValue(
+                                record.value(),
+                                UserResetPasswordEvent.class
+                        );
+
+                        log.info("Received password reset event: " + resetEvent.getEmail());
+                        notificationService.processPasswordReset(resetEvent);
+                    } catch (Exception e) {
+                        log.severe("Error processing reset message: " + e.getMessage());
                     }
                 });
             }
-        } catch (WakeupException ignored) {
+        } catch (WakeupException e) {
+            log.info("Consumer woken up for shutdown");
         } catch (Exception e) {
             log.severe("Error in PasswordResetConsumer: " + e.getMessage());
         } finally {
             consumer.close();
+            log.info("PasswordResetConsumer closed");
         }
     }
 
+    /**
+     * Останавливает потребителя Kafka.
+     *
+     * <p>Метод выполняет graceful shutdown:
+     * <ol>
+     *   <li>Устанавливает флаг running = false</li>
+     *   <li>Пробуждает потребителя, если он заблокирован в poll</li>
+     *   <li>Останавливает исполнительный сервис</li>
+     * </ol>
+     */
     @PreDestroy
-    public void shutdown() {
+    public void shutdownConsumer() {
         running = false;
-        if (consumer != null) consumer.wakeup();
-        if (executorService != null) executorService.shutdown();
+
+        if (consumer != null) {
+            consumer.wakeup();
+        }
+
+        if (executorService != null) {
+            executorService.shutdown();
+        }
+
         log.info("PasswordResetConsumer stopped");
     }
 }
