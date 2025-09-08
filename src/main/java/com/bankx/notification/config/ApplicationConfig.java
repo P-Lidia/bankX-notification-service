@@ -2,6 +2,7 @@ package com.bankx.notification.config;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
@@ -39,7 +40,7 @@ public class ApplicationConfig {
     /**
      * Возвращает значение свойства по ключу или значение по умолчанию, если свойство не найдено.
      *
-     * @param key ключ свойства
+     * @param key          ключ свойства
      * @param defaultValue значение по умолчанию
      * @return значение свойства или defaultValue, если свойство не найдено
      */

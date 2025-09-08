@@ -2,6 +2,7 @@ package com.bankx.notification.model.entity;
 
 import org.bson.codecs.pojo.annotations.BsonProperty;
 import org.bson.types.ObjectId;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -58,10 +59,10 @@ public class NotificationLog {
      * Конструктор с параметрами для создания лога уведомления.
      *
      * @param activationKey ключ активации
-     * @param eventType тип события
-     * @param email адрес электронной почты
-     * @param createdAt время создания
-     * @param errorMessage сообщение об ошибке
+     * @param eventType     тип события
+     * @param email         адрес электронной почты
+     * @param createdAt     время создания
+     * @param errorMessage  сообщение об ошибке
      */
     public NotificationLog(UUID activationKey, String eventType,
                            String email, LocalDateTime createdAt, String errorMessage) {
@@ -72,44 +73,106 @@ public class NotificationLog {
         this.errorMessage = errorMessage;
     }
 
-    public ObjectId getId() { return id; }
-    public void setId(ObjectId id) { this.id = id; }
+    public ObjectId getId() {
+        return id;
+    }
 
-    public String getEventId() { return eventId; }
-    public void setEventId(String eventId) { this.eventId = eventId; }
+    public void setId(ObjectId id) {
+        this.id = id;
+    }
 
-    public String getEventType() { return eventType; }
-    public void setEventType(String eventType) { this.eventType = eventType; }
+    public String getEventId() {
+        return eventId;
+    }
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
+    public void setEventId(String eventId) {
+        this.eventId = eventId;
+    }
 
-    public String getFirstName() { return firstName; }
-    public void setFirstName(String firstName) { this.firstName = firstName; }
+    public String getEventType() {
+        return eventType;
+    }
 
-    public String getLastName() { return lastName; }
-    public void setLastName(String lastName) { this.lastName = lastName; }
+    public void setEventType(String eventType) {
+        this.eventType = eventType;
+    }
 
-    public UUID getActivationKey() { return activationKey; }
-    public void setActivationKey(UUID activationKey) { this.activationKey = activationKey; }
+    public String getEmail() {
+        return email;
+    }
 
-    public String getResetToken() { return resetToken; }
-    public void setResetToken(String resetToken) { this.resetToken = resetToken; }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public String getFirstName() {
+        return firstName;
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
 
-    public String getErrorMessage() { return errorMessage; }
-    public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+    public String getLastName() {
+        return lastName;
+    }
 
-    public int getAttemptCount() { return attemptCount; }
-    public void setAttemptCount(int attemptCount) { this.attemptCount = attemptCount; }
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public UUID getActivationKey() {
+        return activationKey;
+    }
+
+    public void setActivationKey(UUID activationKey) {
+        this.activationKey = activationKey;
+    }
+
+    public String getResetToken() {
+        return resetToken;
+    }
+
+    public void setResetToken(String resetToken) {
+        this.resetToken = resetToken;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
+    }
+
+    public int getAttemptCount() {
+        return attemptCount;
+    }
+
+    public void setAttemptCount(int attemptCount) {
+        this.attemptCount = attemptCount;
+    }
 
     /**
      * Увеличивает счетчик попыток отправки на 1.
      */
-    public void incrementAttemptCount() { this.attemptCount++; }
+    public void incrementAttemptCount() {
+        this.attemptCount++;
+    }
 }

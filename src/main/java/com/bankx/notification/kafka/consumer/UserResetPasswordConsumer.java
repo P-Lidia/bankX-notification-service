@@ -53,7 +53,6 @@ public class UserResetPasswordConsumer {
 
     private final ObjectMapper objectMapper = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
     private ExecutorService executorService;
     private volatile boolean running = false;
     private KafkaConsumer<String, String> consumer;
@@ -78,17 +77,13 @@ public class UserResetPasswordConsumer {
             Properties consumerProps = kafkaConsumerConfig.getConsumerProperties(
                     "notification-service-reset-group"
             );
-
             String topic = kafkaTopicConfig.getUserPasswordTopic();
             waitForTopicCreation(topic, consumerProps);
-
             consumer = new KafkaConsumer<>(consumerProps);
             consumer.subscribe(Collections.singletonList(topic));
-
             running = true;
             executorService = Executors.newSingleThreadExecutor();
             executorService.execute(this::pollForMessages);
-
             log.info("Started PasswordResetConsumer for topic: " + topic);
         } catch (Exception e) {
             log.severe("Failed to initialize PasswordResetConsumer: " + e.getMessage());
@@ -102,10 +97,10 @@ public class UserResetPasswordConsumer {
      * <p>Метод периодически проверяет существование топика до его появления.
      * Это необходимо для случаев, когда потребитель запускается раньше топика.
      *
-     * @param topic название топика
+     * @param topic         название топика
      * @param consumerProps свойства потребителя для подключения к Kafka
      * @throws InterruptedException если поток был прерван во время ожидания
-     * @throws RuntimeException если произошла ошибка при проверке топика
+     * @throws RuntimeException     если произошла ошибка при проверке топика
      */
     private void waitForTopicCreation(String topic, Properties consumerProps) throws InterruptedException {
         try (AdminClient adminClient = AdminClient.create(consumerProps)) {
@@ -141,14 +136,12 @@ public class UserResetPasswordConsumer {
         try {
             while (running) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
-
                 records.forEach(record -> {
                     try {
                         UserResetPasswordEvent resetEvent = objectMapper.readValue(
                                 record.value(),
                                 UserResetPasswordEvent.class
                         );
-
                         log.info("Received password reset event: " + resetEvent.getEmail());
                         notificationService.processPasswordReset(resetEvent);
                     } catch (Exception e) {
@@ -179,15 +172,12 @@ public class UserResetPasswordConsumer {
     @PreDestroy
     public void shutdownConsumer() {
         running = false;
-
         if (consumer != null) {
             consumer.wakeup();
         }
-
         if (executorService != null) {
             executorService.shutdown();
         }
-
         log.info("PasswordResetConsumer stopped");
     }
 }

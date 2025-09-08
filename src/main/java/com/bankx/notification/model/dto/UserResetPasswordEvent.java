@@ -14,7 +14,6 @@ public class UserResetPasswordEvent {
     private String firstName;
     private String lastName;
     private String resetToken;
-    private String resetUrl;
 
     /**
      * Конструктор по умолчанию.
@@ -25,45 +24,59 @@ public class UserResetPasswordEvent {
     /**
      * Создает событие сброса пароля пользователя с указанными данными.
      *
-     * @param eventId идентификатор события
-     * @param email электронная почта пользователя
-     * @param firstName имя пользователя
-     * @param lastName фамилия пользователя
+     * @param eventId    идентификатор события
+     * @param email      электронная почта пользователя
+     * @param firstName  имя пользователя
+     * @param lastName   фамилия пользователя
      * @param resetToken токен для сброса пароля
-     * @param resetUrl URL для сброса пароля
      */
     public UserResetPasswordEvent(String eventId, String email, String firstName,
-                                  String lastName, String resetToken, String resetUrl) {
+                                  String lastName, String resetToken) {
         this.eventId = eventId;
         this.email = email;
         this.firstName = firstName;
         this.lastName = lastName;
         this.resetToken = resetToken;
-        this.resetUrl = resetUrl;
     }
 
-    public String getEventId() { return eventId; }
-    public void setEventId(String eventId) { this.eventId = eventId; }
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public String getFirstName() { return firstName; }
-    public void setFirstName(String firstName) { this.firstName = firstName; }
-    public String getLastName() { return lastName; }
-    public void setLastName(String lastName) { this.lastName = lastName; }
-    public String getResetToken() { return resetToken; }
-    public void setResetToken(String resetToken) { this.resetToken = resetToken; }
-    public String getResetUrl() { return resetUrl; }
-    public void setResetUrl(String resetUrl) { this.resetUrl = resetUrl; }
+    public String getEventId() {
+        return eventId;
+    }
 
-    /**
-     * Возвращает полное имя пользователя, объединяя имя и фамилию.
-     *
-     * @return полное имя пользователя или пустую строку, если имя и фамилия не указаны
-     */
-    public String getFullName() {
-        String fn = firstName == null ? "" : firstName;
-        String ln = lastName == null ? "" : lastName;
-        return (fn + " " + ln).trim();
+    public void setEventId(String eventId) {
+        this.eventId = eventId;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getResetToken() {
+        return resetToken;
+    }
+
+    public void setResetToken(String resetToken) {
+        this.resetToken = resetToken;
     }
 
     /**
@@ -78,7 +91,6 @@ public class UserResetPasswordEvent {
                 ", firstName='" + firstName + '\'' +
                 ", lastName='" + lastName + '\'' +
                 ", resetToken='" + resetToken + '\'' +
-                ", resetUrl='" + resetUrl + '\'' +
                 '}';
     }
 
@@ -89,7 +101,7 @@ public class UserResetPasswordEvent {
      */
     @Override
     public int hashCode() {
-        return Objects.hash(eventId, email, firstName, lastName, resetToken, resetUrl);
+        return Objects.hash(eventId, email, firstName, lastName, resetToken);
     }
 
     /**
@@ -107,7 +119,6 @@ public class UserResetPasswordEvent {
                 Objects.equals(email, userEvent.email) &&
                 Objects.equals(firstName, userEvent.firstName) &&
                 Objects.equals(lastName, userEvent.lastName) &&
-                Objects.equals(resetToken, userEvent.resetToken) &&
-                Objects.equals(resetUrl, userEvent.resetUrl);
+                Objects.equals(resetToken, userEvent.resetToken);
     }
 }

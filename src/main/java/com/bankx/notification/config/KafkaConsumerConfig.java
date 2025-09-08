@@ -45,13 +45,4 @@ public class KafkaConsumerConfig {
         properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
         return properties;
     }
-
-    /**
-     * Возвращает адреса брокеров Kafka.
-     *
-     * @return строка с адресами брокеров, разделенными запятыми
-     */
-    public String getBootstrapServers() {
-        return appConfig.getProperty("kafka.bootstrap.servers", "kafka:9092");
-    }
 }
