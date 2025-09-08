@@ -7,6 +7,7 @@ ATTEMPT=0
 
 # Цикл ожидания доступности MongoDB
 while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+  # Проверяем доступность MongoDB с помощью команды ping
   if mongosh --host mongodb --port 27017 -u admin -p password --authenticationDatabase admin --eval "db.adminCommand('ping')" > /dev/null 2>&1; then
     echo "MongoDB is available!"
     break
@@ -17,6 +18,7 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
   ATTEMPT=$((ATTEMPT+1))
 done
 
+# Если после всех попыток MongoDB недоступна, выходим с ошибкой
 if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
   echo "Error: MongoDB not available after $MAX_ATTEMPTS attempts"
   exit 1
@@ -44,6 +46,7 @@ EOF
 mongosh --host mongodb --port 27017 -u appuser -p apppassword --authenticationDatabase bankx-notification <<EOF
 use bankx-notification;
 
+// Создаем коллекцию шаблонов писем (если не существует)
 db.createCollection('email_templates');
 
 // Функция для вставки шаблона, если его нет
@@ -59,17 +62,19 @@ function insertTemplateIfNotExists(template) {
 
 const now = new Date();
 
+// Вставляем шаблон для регистрации
 insertTemplateIfNotExists({
   templateType: "registration",
   subject: "Активация аккаунта в BankX",
   body: "Уважаемый(ая) {{firstName}} {{lastName}}, для активации вашего аккаунта перейдите по ссылке: {{activationLink}}",
-  variables: ["firstName", "lastName", "activationLink"],
-  isActive: true,
-  isHtml: false,
+  variables: ["firstName", "lastName", "activationLink"], // Переменные для подстановки в шаблон
+  isActive: true,   // Шаблон активен и будет использоваться
+  isHtml: false,    // Шаблон в текстовом формате (не HTML)
   createdAt: now,
   updatedAt: now
 });
 
+// Вставляем шаблон для запроса сброса пароля
 insertTemplateIfNotExists({
   templateType: "password_reset_request",
   subject: "Запрос на сброс пароля BankX",
@@ -81,6 +86,7 @@ insertTemplateIfNotExists({
   updatedAt: now
 });
 
+// Вставляем шаблон для уведомления об успешном сбросе пароля
 insertTemplateIfNotExists({
   templateType: "password_reset_success",
   subject: "Пароль BankX изменен",
@@ -92,6 +98,7 @@ insertTemplateIfNotExists({
   updatedAt: now
 });
 
+// Вставляем шаблон для уведомления об успешной активации аккаунта
 insertTemplateIfNotExists({
   templateType: "account_activated",
   subject: "Успешная регистрация в BankX",
