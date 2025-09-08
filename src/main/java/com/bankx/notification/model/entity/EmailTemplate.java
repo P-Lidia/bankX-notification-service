@@ -35,30 +35,75 @@ public class EmailTemplate {
     @BsonProperty("isHtml")
     private Boolean isHtml;
 
-    public ObjectId getId() { return id; }
-    public void setId(ObjectId id) { this.id = id; }
+    public ObjectId getId() {
+        return id;
+    }
 
-    public String getTemplateType() { return templateType; }
-    public void setTemplateType(String templateType) { this.templateType = templateType; }
+    public void setId(ObjectId id) {
+        this.id = id;
+    }
 
-    public String getSubject() { return subject; }
-    public void setSubject(String subject) { this.subject = subject; }
+    public String getTemplateType() {
+        return templateType;
+    }
 
-    public String getBody() { return body; }
-    public void setBody(String body) { this.body = body; }
+    public void setTemplateType(String templateType) {
+        this.templateType = templateType;
+    }
 
-    public List<String> getVariables() { return variables; }
-    public void setVariables(List<String> variables) { this.variables = variables; }
+    public String getSubject() {
+        return subject;
+    }
 
-    public Boolean getIsActive() { return isActive; }
-    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
 
-    public Date getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
+    public String getBody() {
+        return body;
+    }
 
-    public Date getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(Date updatedAt) { this.updatedAt = updatedAt; }
+    public void setBody(String body) {
+        this.body = body;
+    }
 
-    public Boolean getIsHtml() { return isHtml; }
-    public void setIsHtml(Boolean isHtml) { this.isHtml = isHtml; }
+    public List<String> getVariables() {
+        return variables;
+    }
+
+    public void setVariables(List<String> variables) {
+        this.variables = variables;
+    }
+
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+
+    public Date getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Date createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Date getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Date updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public Boolean getIsHtml() {
+        return isHtml;
+    }
+
+    public void setIsHtml(Boolean isHtml) {
+        this.isHtml = isHtml;
+    }
 }

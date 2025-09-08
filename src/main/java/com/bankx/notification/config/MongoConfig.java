@@ -97,13 +97,4 @@ public class MongoConfig {
     public String getDatabaseName() {
         return databaseName;
     }
-
-    /**
-     * Возвращает строку подключения к MongoDB.
-     *
-     * @return строка подключения
-     */
-    public String getConnectionString() {
-        return connectionString;
-    }
 }

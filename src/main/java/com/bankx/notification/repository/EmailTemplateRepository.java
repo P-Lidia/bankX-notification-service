@@ -43,22 +43,6 @@ public class EmailTemplateRepository {
      * @param templateType тип шаблона (регистрация, сброс пароля и т.д.)
      * @return шаблон письма или null, если не найден
      */
-    public EmailTemplate findEmailTemplateByType(String templateType) {
-        Bson query = Filters.and(
-                Filters.eq("templateType", templateType),
-                Filters.eq("isActive", true)
-        );
-        return getEmailTemplatesCollection().find(query).first();
-    }
-
-    /**
-     * Находит шаблон письма по его типу.
-     *
-     * <p>Возвращает только активные шаблоны (isActive = true).
-     *
-     * @param templateType тип шаблона (регистрация, сброс пароля и т.д.)
-     * @return шаблон письма или null, если не найден
-     */
     public EmailTemplate findByTemplateType(String templateType) {
         Bson query = Filters.and(
                 Filters.eq("templateType", templateType),

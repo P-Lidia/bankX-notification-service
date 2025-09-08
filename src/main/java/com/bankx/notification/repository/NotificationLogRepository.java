@@ -59,7 +59,6 @@ public class NotificationLogRepository {
             getNotificationLogsCollection().insertOne(log);
             return log;
         } catch (MongoWriteException e) {
-            // Обработка дубликатов
             if (e.getError() != null && e.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
                 return null;
             }
@@ -94,7 +93,7 @@ public class NotificationLogRepository {
     /**
      * Находит все записи логов с указанным статусом.
      *
-     * @param статус статус уведомления
+     * @param status статус уведомления
      * @return список записей логов
      */
     public List<NotificationLog> findNotificationLogsByStatus(String status) {
@@ -106,8 +105,8 @@ public class NotificationLogRepository {
     /**
      * Обновляет статус записи лога.
      *
-     * @param id идентификатор записи
-     * @param status новый статус
+     * @param id           идентификатор записи
+     * @param status       новый статус
      * @param errorMessage сообщение об ошибке (если есть)
      */
     public void updateNotificationLogStatus(ObjectId id, String status, String errorMessage) {
@@ -144,21 +143,15 @@ public class NotificationLogRepository {
     public void ensureNotificationLogsIndexes() {
         MongoDatabase database = mongoClient.getDatabase(mongoConfig.getDatabaseName());
         MongoCollection<Document> collection = database.getCollection("notification_logs");
-
-        // Уникальный индекс по event_id для защиты от дубликатов
         collection.createIndex(
                 Indexes.ascending("event_id"),
                 new IndexOptions().unique(true)
         );
-
-        // Другие индексы для улучшения производительности
         collection.createIndex(Indexes.ascending("email"));
         collection.createIndex(Indexes.ascending("status"));
         collection.createIndex(Indexes.ascending("created_at"));
         collection.createIndex(Indexes.ascending("activation_key"));
         collection.createIndex(Indexes.ascending("reset_token"));
-
-        // Индекс для часто используемых комбинаций полей
         collection.createIndex(Indexes.compoundIndex(
                 Indexes.ascending("status"),
                 Indexes.ascending("created_at")
@@ -180,20 +173,18 @@ public class NotificationLogRepository {
      * Сохраняет информацию об успешной отправке уведомления.
      * Игнорирует дубликаты событий.
      *
-     * @param eventId идентификатор события
+     * @param eventId   идентификатор события
      * @param eventType тип события
-     * @param target адрес получателя
+     * @param target    адрес получателя
      */
     public void saveSuccessEvent(String eventId, String eventType, String target) {
         if (eventId == null) return;
-
         NotificationLog log = new NotificationLog();
         log.setEventId(eventId);
         log.setEventType(eventType);
         log.setEmail(target);
         log.setStatus("SUCCESS");
         log.setCreatedAt(LocalDateTime.now());
-
         try {
             getNotificationLogsCollection().insertOne(log);
         } catch (MongoWriteException e) {
@@ -208,23 +199,20 @@ public class NotificationLogRepository {
      * Сохраняет упрощенную запись о событии.
      * Игнорирует дубликаты событий.
      *
-     * @param eventId идентификатор события
+     * @param eventId   идентификатор события
      * @param eventType тип события
-     * @param target адрес получателя
+     * @param target    адрес получателя
      */
     public void saveSimpleEvent(String eventId, String eventType, String target) {
         if (eventId == null) return;
-
         NotificationLog log = new NotificationLog();
         log.setEventId(eventId);
         log.setEventType(eventType);
         log.setEmail(target);
         log.setStatus("SUCCESS");
-
         try {
             getNotificationLogsCollection().insertOne(log);
         } catch (MongoWriteException e) {
-            // Игнорируем дубликаты
             if (e.getError() != null && e.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
                 return;
             }
@@ -248,8 +236,8 @@ public class NotificationLogRepository {
     /**
      * Обновляет статус записи лога по идентификатору события.
      *
-     * @param eventId идентификатор события
-     * @param status новый статус
+     * @param eventId      идентификатор события
+     * @param status       новый статус
      * @param errorMessage сообщение об ошибке (если есть)
      */
     public void updateNotificationLogStatusByEventId(String eventId, String status, String errorMessage) {

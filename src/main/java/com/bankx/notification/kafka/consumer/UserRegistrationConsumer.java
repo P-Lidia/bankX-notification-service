@@ -74,24 +74,18 @@ public class UserRegistrationConsumer {
         try {
             log.info("=== KAFKA CONSUMER INITIALIZATION STARTED ===");
             log.info("Getting consumer properties...");
-
             Properties consumerProps = kafkaConsumerConfig.getConsumerProperties(
                     "notification-service-registration-group"
             );
-
             String topic = kafkaTopicConfig.getUserRegistrationTopic();
             waitForTopicCreation(topic, consumerProps);
-
             log.info("Creating Kafka consumer instance...");
             consumer = new KafkaConsumer<>(consumerProps);
-
             log.info("Subscribing to topic: " + topic);
             consumer.subscribe(Collections.singletonList(topic));
-
             running = true;
             executorService = Executors.newSingleThreadExecutor();
             executorService.execute(this::pollForMessages);
-
             log.info("=== KAFKA CONSUMER INITIALIZED SUCCESSFULLY ===");
             log.info("Topic: " + topic);
             log.info("Group: notification-service-registration-group");
@@ -108,10 +102,10 @@ public class UserRegistrationConsumer {
      * <p>Метод периодически проверяет существование топика до его появления.
      * Это необходимо для случаев, когда потребитель запускается раньше топика.
      *
-     * @param topic название топика
+     * @param topic         название топика
      * @param consumerProps свойства потребителя для подключения к Kafka
      * @throws InterruptedException если поток был прерван во время ожидания
-     * @throws RuntimeException если произошла ошибка при проверке топика
+     * @throws RuntimeException     если произошла ошибка при проверке топика
      */
     private void waitForTopicCreation(String topic, Properties consumerProps) throws InterruptedException {
         try (AdminClient adminClient = AdminClient.create(consumerProps)) {
@@ -146,11 +140,9 @@ public class UserRegistrationConsumer {
     private void pollForMessages() {
         try {
             log.info("Starting to poll for messages...");
-
             while (running) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
                 log.info("Polled " + records.count() + " records");
-
                 records.forEach(record -> {
                     try {
                         log.info("Received message: " + record.value());
@@ -158,10 +150,8 @@ public class UserRegistrationConsumer {
                                 record.value(),
                                 UserRegistrationEvent.class
                         );
-
                         log.info("Parsed user registration event: " + userEvent);
                         notificationService.processUserActivation(userEvent);
-
                         log.info("Successfully processed user event for: " + userEvent.getEmail());
                     } catch (Exception e) {
                         log.severe("Error processing message: " + e.getMessage());
@@ -191,15 +181,12 @@ public class UserRegistrationConsumer {
     @PreDestroy
     public void shutdownConsumer() {
         running = false;
-
         if (consumer != null) {
             consumer.wakeup();
         }
-
         if (executorService != null) {
             executorService.shutdown();
         }
-
         log.info("Kafka consumer stopped");
     }
 }
