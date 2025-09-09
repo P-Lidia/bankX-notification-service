@@ -13,7 +13,7 @@ import jakarta.inject.Inject;
 public class KafkaTopicConfig {
 
     @Inject
-    private ApplicationConfig appConfig;
+    private ApplicationConfig applicationConfig;
 
     /**
      * Возвращает имя топика для событий транзакций.
@@ -21,7 +21,7 @@ public class KafkaTopicConfig {
      * @return имя топика для транзакций
      */
     public String getTransactionTopic() {
-        return appConfig.getProperty("kafka.payment.topic", "notifications.transaction.events");
+        return applicationConfig.getProperty("kafka.payment.topic", "notifications.transaction.events");
     }
 
     /**
@@ -30,7 +30,7 @@ public class KafkaTopicConfig {
      * @return имя топика для регистрации пользователей
      */
     public String getUserRegistrationTopic() {
-        return appConfig.getProperty("kafka.user.registration.topic", "notifications.registration.events");
+        return applicationConfig.getProperty("kafka.user.registration.topic", "notifications.registration.events");
     }
 
     /**
@@ -39,6 +39,6 @@ public class KafkaTopicConfig {
      * @return имя топика для сброса пароля
      */
     public String getUserPasswordTopic() {
-        return appConfig.getProperty("kafka.user.reset.password.topic", "notifications.reset.password.events");
+        return applicationConfig.getProperty("kafka.user.reset.password.topic", "notifications.reset.password.events");
     }
 }

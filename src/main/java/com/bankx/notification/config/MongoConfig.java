@@ -13,20 +13,26 @@ import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecRegistries;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
-import org.jboss.logging.Logger;
+
+import java.util.logging.Logger;
 
 /**
  * Конфигурационный класс для настройки подключения к MongoDB.
  *
  * <p>Настраивает и предоставляет экземпляр {@link MongoClient} для работы с MongoDB.
  * Поддерживает автоматическую сериализацию/десериализацию POJO объектов.
+ * В классе MongoConfig используется PojoCodecProvider, который позволяет MongoDB
+ * автоматически сериализовать и десериализовать POJO-объекты. Это означает,
+ * что вы можете работать с MongoDB используя свои обычные Java-классы (например, NotificationLog, EmailTemplate),
+ * без необходимости преобразовывать их в специальные форматы/
+ *
  */
 @ApplicationScoped
 public class MongoConfig {
-    private static final org.jboss.logging.Logger LOGGER = Logger.getLogger(MongoConfig.class);
+    private static final Logger LOG = Logger.getLogger(MongoConfig.class.getName());
 
     @Inject
-    private ApplicationConfig appConfig;
+    private ApplicationConfig applicationConfig;
 
     private String connectionString;
     private String databaseName;
@@ -36,9 +42,9 @@ public class MongoConfig {
      */
     @PostConstruct
     public void initializeMongoConfiguration() {
-        connectionString = appConfig.getProperty("mongodb.connection.string", "mongodb://admin:password@mongodb:27017/bankx-notification?authSource=admin");
-        databaseName = appConfig.getProperty("mongodb.database", "bankx-notification");
-        LOGGER.infov("MongoDB configuration initialized. Database: {0}", databaseName);
+        connectionString = applicationConfig.getProperty("mongodb.connection.string", "mongodb://admin:password@mongodb:27017/bankx-notification?authSource=admin");
+        databaseName = applicationConfig.getProperty("mongodb.database", "bankx-notification");
+        LOG.info("MongoDB configuration initialized. Database: " + databaseName);
     }
 
     /**
@@ -58,7 +64,7 @@ public class MongoConfig {
     @ApplicationScoped
     public MongoClient createMongoClient() {
         try {
-            LOGGER.info("Creating MongoClient with POJO support");
+            LOG.info("Creating MongoClient with POJO support");
             CodecRegistry pojoCodecRegistry = CodecRegistries.fromRegistries(
                     MongoClientSettings.getDefaultCodecRegistry(),
                     CodecRegistries.fromProviders(PojoCodecProvider.builder().automatic(true).build())
@@ -70,7 +76,7 @@ public class MongoConfig {
                     .build();
             return MongoClients.create(settings);
         } catch (Exception e) {
-            LOGGER.error("Failed to create MongoClient: " + e.getMessage());
+            LOG.severe("Failed to create MongoClient: " + e.getMessage());
             throw new RuntimeException("Failed to create MongoClient", e);
         }
     }
@@ -83,9 +89,9 @@ public class MongoConfig {
     public void closeMongoClient(@Disposes MongoClient client) {
         try {
             client.close();
-            LOGGER.info("MongoClient closed successfully");
+            LOG.info("MongoClient closed successfully");
         } catch (Exception e) {
-            LOGGER.warnv("Error closing MongoClient: {0}", e.getMessage());
+            LOG.warning("Error closing MongoClient: " + e.getMessage());
         }
     }
 

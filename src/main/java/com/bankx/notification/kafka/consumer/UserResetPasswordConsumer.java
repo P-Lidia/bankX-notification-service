@@ -2,6 +2,9 @@ package com.bankx.notification.kafka.consumer;
 
 import com.bankx.notification.config.KafkaConsumerConfig;
 import com.bankx.notification.config.KafkaTopicConfig;
+import com.bankx.notification.exception.ApplicationException;
+import com.bankx.notification.exception.ErrorCode;
+import com.bankx.notification.exception.ExceptionMapper;
 import com.bankx.notification.model.dto.UserResetPasswordEvent;
 import com.bankx.notification.service.NotificationService;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -40,7 +43,7 @@ import java.util.logging.Logger;
 @Singleton
 @Startup
 public class UserResetPasswordConsumer {
-    private static final Logger log = Logger.getLogger(UserResetPasswordConsumer.class.getName());
+    private static final Logger LOG = Logger.getLogger(UserResetPasswordConsumer.class.getName());
 
     @Inject
     private NotificationService notificationService;
@@ -50,6 +53,9 @@ public class UserResetPasswordConsumer {
 
     @Inject
     private KafkaTopicConfig kafkaTopicConfig;
+
+    @Inject
+    private ExceptionMapper exceptionMapper;
 
     private final ObjectMapper objectMapper = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -69,11 +75,12 @@ public class UserResetPasswordConsumer {
      *   <li>Запускает поток для опроса сообщений</li>
      * </ol>
      *
-     * @throws RuntimeException если не удалось инициализировать потребителя
+     * @throws ApplicationException если не удалось инициализировать потребителя
      */
     @PostConstruct
     public void initializeConsumer() {
         try {
+            LOG.info("=== PASSWORD RESET CONSUMER INITIALIZATION STARTED ===");
             Properties consumerProps = kafkaConsumerConfig.getConsumerProperties(
                     "notification-service-reset-group"
             );
@@ -84,10 +91,17 @@ public class UserResetPasswordConsumer {
             running = true;
             executorService = Executors.newSingleThreadExecutor();
             executorService.execute(this::pollForMessages);
-            log.info("Started PasswordResetConsumer for topic: " + topic);
+            LOG.info("=== PASSWORD RESET CONSUMER INITIALIZED SUCCESSFULLY ===");
+            LOG.info("Topic: " + topic);
+            LOG.info("Group: notification-service-reset-group");
         } catch (Exception e) {
-            log.severe("Failed to initialize PasswordResetConsumer: " + e.getMessage());
-            throw new RuntimeException("Failed to initialize PasswordResetConsumer", e);
+            ApplicationException appEx = new ApplicationException(
+                    ErrorCode.KAFKA_OPERATION_ERROR,
+                    "Failed to initialize PasswordResetConsumer",
+                    e
+            );
+            exceptionMapper.handleException(appEx);
+            throw appEx;
         }
     }
 
@@ -95,29 +109,50 @@ public class UserResetPasswordConsumer {
      * Ожидает создания топика в Kafka.
      *
      * <p>Метод периодически проверяет существование топика до его появления.
-     * Это необходимо для случаев, когда потребитель запускается раньше топика.
+     * Это необходим для случаев, когда потребитель запускается раньше топика.
      *
      * @param topic         название топика
      * @param consumerProps свойства потребителя для подключения к Kafka
-     * @throws InterruptedException если поток был прерван во время ожидания
-     * @throws RuntimeException     если произошла ошибка при проверке топика
+     * @throws ApplicationException если произошла ошибка при проверке топика
      */
-    private void waitForTopicCreation(String topic, Properties consumerProps) throws InterruptedException {
+    private void waitForTopicCreation(String topic, Properties consumerProps) {
         try (AdminClient adminClient = AdminClient.create(consumerProps)) {
             boolean topicExists = false;
-            while (!topicExists) {
+            int attempt = 0;
+            int maxAttempts = 12; // 1 minute total waiting (12 * 5 seconds)
+            while (!topicExists && attempt < maxAttempts) {
+                attempt++;
                 ListTopicsResult topics = adminClient.listTopics();
                 if (topics.names().get().contains(topic)) {
-                    log.info("Topic found: " + topic);
+                    LOG.info("Topic found: " + topic);
                     topicExists = true;
                 } else {
-                    log.info("Topic not created yet, waiting 5 seconds...");
+                    LOG.info("Topic not created yet, waiting 5 seconds... (attempt " + attempt + "/" + maxAttempts + ")");
                     Thread.sleep(5000);
                 }
             }
+            if (!topicExists) {
+                throw new ApplicationException(
+                        ErrorCode.KAFKA_OPERATION_ERROR,
+                        "Topic not found after waiting",
+                        "Topic: " + topic
+                );
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ApplicationException(
+                    ErrorCode.KAFKA_OPERATION_ERROR,
+                    "Interrupted while waiting for topic",
+                    "Topic: " + topic,
+                    e
+            );
         } catch (Exception e) {
-            log.severe("Error while waiting for topic: " + e.getMessage());
-            throw new RuntimeException(e);
+            throw new ApplicationException(
+                    ErrorCode.KAFKA_OPERATION_ERROR,
+                    "Error while waiting for topic",
+                    "Topic: " + topic,
+                    e
+            );
         }
     }
 
@@ -127,35 +162,56 @@ public class UserResetPasswordConsumer {
      * <p>Метод работает в бесконечном цикле, пока running = true.
      * Для каждого полученного сообщения:
      * <ol>
-     *   <li>Десериализует сообщение в объект UserResetPasswordEvent</li>
+     *   <li>Десериализует сообение в объект UserResetPasswordEvent</li>
      *   <li>Передает событие в NotificationService для обработки</li>
      *   <li>Логирует успешную обработку или ошибки</li>
      * </ol>
      */
     private void pollForMessages() {
         try {
+            LOG.info("Starting to poll for password reset messages...");
             while (running) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
+                LOG.info("Polled " + records.count() + " password reset records");
+
                 records.forEach(record -> {
                     try {
                         UserResetPasswordEvent resetEvent = objectMapper.readValue(
                                 record.value(),
                                 UserResetPasswordEvent.class
                         );
-                        log.info("Received password reset event: " + resetEvent.getEmail());
+                        LOG.info("Received password reset event: " + resetEvent.getEmail());
                         notificationService.processPasswordReset(resetEvent);
+                        LOG.info("Successfully processed password reset event for: " + resetEvent.getEmail());
+                    } catch (ApplicationException e) {
+                        // Обрабатываем известные исключения
+                        exceptionMapper.handleException(e);
                     } catch (Exception e) {
-                        log.severe("Error processing reset message: " + e.getMessage());
+                        // Оборачиваем неизвестные исключения в ApplicationException
+                        ApplicationException appEx = new ApplicationException(
+                                ErrorCode.DESERIALIZATION_ERROR,
+                                "Error processing password reset message",
+                                "Topic: " + kafkaTopicConfig.getUserPasswordTopic(),
+                                e
+                        );
+                        exceptionMapper.handleException(appEx);
                     }
                 });
             }
         } catch (WakeupException e) {
-            log.info("Consumer woken up for shutdown");
+            LOG.info("Password reset consumer woken up for shutdown");
         } catch (Exception e) {
-            log.severe("Error in PasswordResetConsumer: " + e.getMessage());
+            ApplicationException appEx = new ApplicationException(
+                    ErrorCode.KAFKA_OPERATION_ERROR,
+                    "Unexpected error in password reset consumer",
+                    e
+            );
+            exceptionMapper.handleException(appEx);
         } finally {
-            consumer.close();
-            log.info("PasswordResetConsumer closed");
+            if (consumer != null) {
+                consumer.close();
+            }
+            LOG.info("Password reset consumer closed");
         }
     }
 
@@ -178,6 +234,6 @@ public class UserResetPasswordConsumer {
         if (executorService != null) {
             executorService.shutdown();
         }
-        log.info("PasswordResetConsumer stopped");
+        LOG.info("Password reset consumer stopped");
     }
 }

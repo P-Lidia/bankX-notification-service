@@ -18,7 +18,7 @@ import java.util.Properties;
 public class KafkaProducerConfig {
 
     @Inject
-    private ApplicationConfig appConfig;
+    private ApplicationConfig applicationConfig;
 
     /**
      * Создает и возвращает настроенного производителя Kafka.
@@ -36,7 +36,7 @@ public class KafkaProducerConfig {
     public KafkaProducer<String, String> createKafkaProducer() {
         Properties properties = new Properties();
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                appConfig.getProperty("kafka.bootstrap.servers", "kafka:9092"));
+                applicationConfig.getProperty("kafka.bootstrap.servers", "kafka:9092"));
         properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         return new KafkaProducer<>(properties);

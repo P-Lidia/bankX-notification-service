@@ -1,5 +1,9 @@
 package com.bankx.notification.service;
 
+import com.bankx.notification.config.ApplicationConfig;
+import com.bankx.notification.exception.ApplicationException;
+import com.bankx.notification.exception.ErrorCode;
+import com.bankx.notification.exception.ExceptionMapper;
 import com.bankx.notification.model.dto.UserRegistrationEvent;
 import com.bankx.notification.model.dto.UserResetPasswordEvent;
 import com.bankx.notification.model.entity.NotificationLog;
@@ -7,7 +11,6 @@ import com.bankx.notification.repository.NotificationLogRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -23,13 +26,18 @@ import java.util.logging.Logger;
  */
 @ApplicationScoped
 public class NotificationService {
-    private static final Logger log = Logger.getLogger(NotificationService.class.getName());
+    private static final Logger LOG = Logger.getLogger(NotificationService.class.getName());
 
     @Inject
     private EmailService emailService;
 
     @Inject
-    private NotificationLogRepository repository;
+    private NotificationLogRepository notificationLogRepository;
+
+    @Inject
+    private ExceptionMapper exceptionMapper;
+    @Inject
+    private ApplicationConfig applicationConfig;
 
     /**
      * Обрабатывает событие активации пользователя.
@@ -45,17 +53,21 @@ public class NotificationService {
      * </ol>
      *
      * @param userEvent событие регистрации пользователя, содержащее необходимые данные
-     * @throws RuntimeException если не удалось обработать событие активации
+     * @throws ApplicationException если не удалось обработать событие активации
      */
     public void processUserActivation(UserRegistrationEvent userEvent) {
-        if (userEvent.getEventId() != null && repository.existsByEventId(userEvent.getEventId())) {
-            log.info("Duplicate activation event " + userEvent.getEventId() + " — skip");
-            return;
+        // Проверяем дубликат события
+        if (userEvent.getEventId() != null && notificationLogRepository.existsByEventId(userEvent.getEventId())) {
+            throw new ApplicationException(
+                    ErrorCode.DUPLICATE_EVENT_ERROR,
+                    "Duplicate activation event detected",
+                    "Event ID: " + userEvent.getEventId()
+            );
         }
         try {
             NotificationLog logEntry = createActivationLogEntry(userEvent);
-            repository.saveNotificationLog(logEntry);
-            String activationLink = "https://bankx.com/activate?key=" + userEvent.getActivationKey();
+            notificationLogRepository.saveNotificationLog(logEntry);
+            String activationLink = applicationConfig.getAppHost() + "/activate?key=" + userEvent.getActivationKey();
             emailService.sendActivationEmail(
                     userEvent.getEmail(),
                     activationLink,
@@ -63,9 +75,21 @@ public class NotificationService {
                     userEvent.getLastName()
             );
             updateLogStatusAsSent(logEntry, userEvent.getEventId());
-            log.info("Activation email sent to: " + userEvent.getEmail());
-        } catch (Exception e) {
+            LOG.info("Activation email sent to: " + userEvent.getEmail());
+        } catch (ApplicationException e) {
+            // Пробрасываем ApplicationException как есть
             handleActivationError(userEvent, e);
+            throw e;
+        } catch (Exception e) {
+            // Оборачиваем другие исключения в ApplicationException
+            ApplicationException appEx = new ApplicationException(
+                    ErrorCode.EMAIL_SEND_ERROR,
+                    "Failed to process user activation",
+                    "User: " + userEvent.getEmail(),
+                    e
+            );
+            handleActivationError(userEvent, appEx);
+            throw appEx;
         }
     }
 
@@ -83,17 +107,21 @@ public class NotificationService {
      * </ol>
      *
      * @param event событие сброса пароля, содержащее необходимые данные
-     * @throws RuntimeException если не удалось обработать событие сброса пароля
+     * @throws ApplicationException если не удалось обработать событие сброса пароля
      */
     public void processPasswordReset(UserResetPasswordEvent event) {
-        if (event.getEventId() != null && repository.existsByEventId(event.getEventId())) {
-            log.info("Duplicate reset event " + event.getEventId() + " — skip");
-            return;
+        // Проверяем дубликат события
+        if (event.getEventId() != null && notificationLogRepository.existsByEventId(event.getEventId())) {
+            throw new ApplicationException(
+                    ErrorCode.DUPLICATE_EVENT_ERROR,
+                    "Duplicate password reset event detected",
+                    "Event ID: " + event.getEventId()
+            );
         }
         try {
             NotificationLog logEntry = createPasswordResetLogEntry(event);
-            repository.saveNotificationLog(logEntry);
-            String resetLink = "https://bankx.com/recover?key=" + event.getResetToken();
+            notificationLogRepository.saveNotificationLog(logEntry);
+            String resetLink = applicationConfig.getAppHost() + "/recover?key=" + event.getResetToken();
             emailService.sendPasswordResetEmail(
                     event.getEmail(),
                     resetLink,
@@ -101,14 +129,27 @@ public class NotificationService {
                     event.getLastName()
             );
             updateLogStatusAsSent(logEntry, event.getEventId());
-            log.info("Password reset email sent to: " + event.getEmail());
-            repository.saveSuccessEvent(event.getEventId(), "USER_PASSWORD_RESET_REQUESTED", event.getEmail());
-        } catch (Exception e) {
+            LOG.info("Password reset email sent to: " + event.getEmail());
+        } catch (ApplicationException e) {
+            // Пробрасываем ApplicationException как есть
             handlePasswordResetError(event, e);
+            throw e;
+        } catch (Exception e) {
+            // Оборачиваем другие исключения в ApplicationException
+            ApplicationException appEx = new ApplicationException(
+                    ErrorCode.EMAIL_SEND_ERROR,
+                    "Failed to process password reset",
+                    "User: " + event.getEmail(),
+                    e
+            );
+            handlePasswordResetError(event, appEx);
+            throw appEx;
         }
     }
-
-    /**
+//todo: раскомментировать как появятся данные сценарии, шаблоны в БД уже заведены
+/*
+    */
+/**
      * Отправляет уведомление об успешной активации аккаунта.
      *
      * <p>Используется после подтверждения активации аккаунта пользователем
@@ -117,19 +158,25 @@ public class NotificationService {
      * @param email     электронная почта пользователя
      * @param firstName имя пользователя
      * @param lastName  фамилия пользователя
-     * @throws RuntimeException если не удалось отправить уведомление
-     */
+     * @throws ApplicationException если не удалось отправить уведомление
+     *//*
+
     public void notifyAccountActivated(String email, String firstName, String lastName) {
         try {
             emailService.sendAccountActivatedEmail(email, firstName, lastName);
-            log.info("Account activated notification sent to: " + email);
+            LOG.info("Account activated notification sent to: " + email);
         } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to send account activated notification for: " + email, e);
-            throw new RuntimeException("Failed to send account activated notification", e);
+            throw new ApplicationException(
+                    ErrorCode.EMAIL_SEND_ERROR,
+                    "Failed to send account activated notification",
+                    "User: " + email,
+                    e
+            );
         }
     }
 
-    /**
+    */
+/**
      * Отправляет уведомление об успешном сбросе пароля.
      *
      * <p>Используется после успешного изменения пароля пользователем
@@ -138,19 +185,25 @@ public class NotificationService {
      * @param email     электронная почта пользователя
      * @param firstName имя пользователя
      * @param lastName  фамилия пользователя
-     * @throws RuntimeException если не удалось отправить уведомление
-     */
+     * @throws ApplicationException если не удалось отправить уведомление
+     *//*
+
     public void notifyPasswordResetSuccess(String email, String firstName, String lastName) {
         try {
             emailService.sendPasswordResetSuccessEmail(email, firstName, lastName);
-            log.info("Password reset success notification sent to: " + email);
+            LOG.info("Password reset success notification sent to: " + email);
         } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to send password reset success notification for: " + email, e);
-            throw new RuntimeException("Failed to send password reset success notification", e);
+            throw new ApplicationException(
+                    ErrorCode.EMAIL_SEND_ERROR,
+                    "Failed to send password reset success notification",
+                    "User: " + email,
+                    e
+            );
         }
     }
+*/
 
-    // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
+    // Вспомогательные методы
 
     /**
      * Создает запись лога для события активации пользователя.
@@ -196,9 +249,9 @@ public class NotificationService {
      */
     private void updateLogStatusAsSent(NotificationLog logEntry, String eventId) {
         if (logEntry.getId() != null) {
-            repository.markNotificationLogAsSent(logEntry.getId());
+            notificationLogRepository.markNotificationLogAsSent(logEntry.getId());
         } else {
-            repository.updateNotificationLogStatusByEventId(eventId, "SENT", null);
+            notificationLogRepository.updateNotificationLogStatusByEventId(eventId, "SENT", null);
         }
     }
 
@@ -209,15 +262,20 @@ public class NotificationService {
      * @param e         исключение, вызвавшее ошибку
      */
     private void handleActivationError(UserRegistrationEvent userEvent, Exception e) {
-        log.log(Level.SEVERE, "Failed to process user activation for: " + userEvent.getEmail(), e);
+        // Обрабатываем исключение через ExceptionMapper
+        if (e instanceof ApplicationException) {
+            exceptionMapper.handleException((ApplicationException) e);
+        } else {
+            exceptionMapper.handleException(e);
+        }
+        // Обновляем статус в логе
         if (userEvent.getEventId() != null) {
-            repository.updateNotificationLogStatusByEventId(
+            notificationLogRepository.updateNotificationLogStatusByEventId(
                     userEvent.getEventId(),
                     "FAILED",
                     e.getMessage()
             );
         }
-        throw new RuntimeException("Failed to process user activation", e);
     }
 
     /**
@@ -227,14 +285,19 @@ public class NotificationService {
      * @param e     исключение, вызвавшее ошибку
      */
     private void handlePasswordResetError(UserResetPasswordEvent event, Exception e) {
-        log.log(Level.SEVERE, "Failed to process password reset for: " + event.getEmail(), event);
+        // Обрабатываем исключение через ExceptionMapper
+        if (e instanceof ApplicationException) {
+            exceptionMapper.handleException((ApplicationException) e);
+        } else {
+            exceptionMapper.handleException(e);
+        }
+        // Обновляем статус в логе
         if (event.getEventId() != null) {
-            repository.updateNotificationLogStatusByEventId(
+            notificationLogRepository.updateNotificationLogStatusByEventId(
                     event.getEventId(),
                     "FAILED",
                     e.getMessage()
             );
         }
-        throw new RuntimeException("Failed to process password reset", e);
     }
 }

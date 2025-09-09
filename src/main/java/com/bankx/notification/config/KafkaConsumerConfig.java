@@ -17,7 +17,7 @@ import java.util.Properties;
 public class KafkaConsumerConfig {
 
     @Inject
-    private ApplicationConfig appConfig;
+    private ApplicationConfig applicationConfig;
 
     /**
      * Создает и возвращает свойства для настройки потребителя Kafka.
@@ -37,7 +37,7 @@ public class KafkaConsumerConfig {
     public Properties getConsumerProperties(String groupId) {
         Properties properties = new Properties();
         properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                appConfig.getProperty("kafka.bootstrap.servers", "kafka:9092"));
+                applicationConfig.getProperty("kafka.bootstrap.servers", "kafka:9092"));
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());

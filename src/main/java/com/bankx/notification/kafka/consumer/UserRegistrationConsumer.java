@@ -2,6 +2,9 @@ package com.bankx.notification.kafka.consumer;
 
 import com.bankx.notification.config.KafkaConsumerConfig;
 import com.bankx.notification.config.KafkaTopicConfig;
+import com.bankx.notification.exception.ApplicationException;
+import com.bankx.notification.exception.ErrorCode;
+import com.bankx.notification.exception.ExceptionMapper;
 import com.bankx.notification.model.dto.UserRegistrationEvent;
 import com.bankx.notification.service.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,7 +42,7 @@ import java.util.logging.Logger;
 @Singleton
 @Startup
 public class UserRegistrationConsumer {
-    private static final Logger log = Logger.getLogger(UserRegistrationConsumer.class.getName());
+    private static final Logger LOG = Logger.getLogger(UserRegistrationConsumer.class.getName());
 
     @Inject
     private NotificationService notificationService;
@@ -49,6 +52,9 @@ public class UserRegistrationConsumer {
 
     @Inject
     private KafkaTopicConfig kafkaTopicConfig;
+
+    @Inject
+    private ExceptionMapper exceptionMapper;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private ExecutorService executorService;
@@ -67,32 +73,34 @@ public class UserRegistrationConsumer {
      *   <li>Запускает поток для опроса сообщений</li>
      * </ol>
      *
-     * @throws RuntimeException если не удалось инициализировать потребителя
+     * @throws ApplicationException если не удалось инициализировать потребителя
      */
     @PostConstruct
     public void initializeConsumer() {
         try {
-            log.info("=== KAFKA CONSUMER INITIALIZATION STARTED ===");
-            log.info("Getting consumer properties...");
+            LOG.info("=== KAFKA CONSUMER INITIALIZATION STARTED ===");
+
             Properties consumerProps = kafkaConsumerConfig.getConsumerProperties(
                     "notification-service-registration-group"
             );
             String topic = kafkaTopicConfig.getUserRegistrationTopic();
             waitForTopicCreation(topic, consumerProps);
-            log.info("Creating Kafka consumer instance...");
             consumer = new KafkaConsumer<>(consumerProps);
-            log.info("Subscribing to topic: " + topic);
             consumer.subscribe(Collections.singletonList(topic));
             running = true;
             executorService = Executors.newSingleThreadExecutor();
             executorService.execute(this::pollForMessages);
-            log.info("=== KAFKA CONSUMER INITIALIZED SUCCESSFULLY ===");
-            log.info("Topic: " + topic);
-            log.info("Group: notification-service-registration-group");
+            LOG.info("=== KAFKA CONSUMER INITIALIZED SUCCESSFULLY ===");
+            LOG.info("Topic: " + topic);
+            LOG.info("Group: notification-service-registration-group");
         } catch (Exception e) {
-            log.severe("=== FAILED TO INITIALIZE KAFKA CONSUMER ===");
-            log.severe("Error: " + e.getMessage());
-            throw new RuntimeException("Failed to initialize Kafka consumer", e);
+            ApplicationException appEx = new ApplicationException(
+                    ErrorCode.KAFKA_OPERATION_ERROR,
+                    "Failed to initialize Kafka consumer",
+                    e
+            );
+            exceptionMapper.handleException(appEx);
+            throw appEx;
         }
     }
 
@@ -104,25 +112,46 @@ public class UserRegistrationConsumer {
      *
      * @param topic         название топика
      * @param consumerProps свойства потребителя для подключения к Kafka
-     * @throws InterruptedException если поток был прерван во время ожидания
-     * @throws RuntimeException     если произошла ошибка при проверке топика
+     * @throws ApplicationException если произошла ошибка при проверке топика
      */
-    private void waitForTopicCreation(String topic, Properties consumerProps) throws InterruptedException {
+    private void waitForTopicCreation(String topic, Properties consumerProps) {
         try (AdminClient adminClient = AdminClient.create(consumerProps)) {
             boolean topicExists = false;
-            while (!topicExists) {
+            int attempt = 0;
+            int maxAttempts = 12; // 1 minute total waiting (12 * 5 seconds)
+            while (!topicExists && attempt < maxAttempts) {
+                attempt++;
                 ListTopicsResult topics = adminClient.listTopics();
                 if (topics.names().get().contains(topic)) {
-                    log.info("Topic found: " + topic);
+                    LOG.info("Topic found: " + topic);
                     topicExists = true;
                 } else {
-                    log.info("Topic not created yet, waiting 5 seconds...");
+                    LOG.info("Topic not created yet, waiting 5 seconds... (attempt " + attempt + "/" + maxAttempts + ")");
                     Thread.sleep(5000);
                 }
             }
+            if (!topicExists) {
+                throw new ApplicationException(
+                        ErrorCode.KAFKA_OPERATION_ERROR,
+                        "Topic not found after waiting",
+                        "Topic: " + topic
+                );
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ApplicationException(
+                    ErrorCode.KAFKA_OPERATION_ERROR,
+                    "Interrupted while waiting for topic",
+                    "Topic: " + topic,
+                    e
+            );
         } catch (Exception e) {
-            log.severe("Error checking topic existence: " + e.getMessage());
-            throw new RuntimeException(e);
+            throw new ApplicationException(
+                    ErrorCode.KAFKA_OPERATION_ERROR,
+                    "Error while waiting for topic",
+                    "Topic: " + topic,
+                    e
+            );
         }
     }
 
@@ -139,32 +168,51 @@ public class UserRegistrationConsumer {
      */
     private void pollForMessages() {
         try {
-            log.info("Starting to poll for messages...");
+            LOG.info("Starting to poll for messages...");
             while (running) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
-                log.info("Polled " + records.count() + " records");
+                LOG.info("Polled " + records.count() + " records");
+
                 records.forEach(record -> {
                     try {
-                        log.info("Received message: " + record.value());
+                        LOG.info("Received message: " + record.value());
                         UserRegistrationEvent userEvent = objectMapper.readValue(
                                 record.value(),
                                 UserRegistrationEvent.class
                         );
-                        log.info("Parsed user registration event: " + userEvent);
+                        LOG.info("Parsed user registration event: " + userEvent);
+
                         notificationService.processUserActivation(userEvent);
-                        log.info("Successfully processed user event for: " + userEvent.getEmail());
+                        LOG.info("Successfully processed user event for: " + userEvent.getEmail());
+                    } catch (ApplicationException e) {
+                        // Обрабатываем известные исключения
+                        exceptionMapper.handleException(e);
                     } catch (Exception e) {
-                        log.severe("Error processing message: " + e.getMessage());
+                        // Оборачиваем неизвестные исключения в ApplicationException
+                        ApplicationException appEx = new ApplicationException(
+                                ErrorCode.DESERIALIZATION_ERROR,
+                                "Error processing Kafka message",
+                                "Topic: " + kafkaTopicConfig.getUserRegistrationTopic(),
+                                e
+                        );
+                        exceptionMapper.handleException(appEx);
                     }
                 });
             }
         } catch (WakeupException e) {
-            log.info("Consumer woken up for shutdown");
+            LOG.info("Consumer woken up for shutdown");
         } catch (Exception e) {
-            log.severe("Unexpected error in Kafka consumer: " + e.getMessage());
+            ApplicationException appEx = new ApplicationException(
+                    ErrorCode.KAFKA_OPERATION_ERROR,
+                    "Unexpected error in Kafka consumer",
+                    e
+            );
+            exceptionMapper.handleException(appEx);
         } finally {
-            consumer.close();
-            log.info("Kafka consumer closed");
+            if (consumer != null) {
+                consumer.close();
+            }
+            LOG.info("Kafka consumer closed");
         }
     }
 
@@ -187,6 +235,6 @@ public class UserRegistrationConsumer {
         if (executorService != null) {
             executorService.shutdown();
         }
-        log.info("Kafka consumer stopped");
+        LOG.info("Kafka consumer stopped");
     }
 }
