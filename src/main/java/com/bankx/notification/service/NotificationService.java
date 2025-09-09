@@ -1,5 +1,6 @@
 package com.bankx.notification.service;
 
+import com.bankx.notification.config.ApplicationConfig;
 import com.bankx.notification.exception.ApplicationException;
 import com.bankx.notification.exception.ErrorCode;
 import com.bankx.notification.exception.ExceptionMapper;
@@ -35,6 +36,8 @@ public class NotificationService {
 
     @Inject
     private ExceptionMapper exceptionMapper;
+    @Inject
+    private ApplicationConfig applicationConfig;
 
     /**
      * Обрабатывает событие активации пользователя.
@@ -64,7 +67,7 @@ public class NotificationService {
         try {
             NotificationLog logEntry = createActivationLogEntry(userEvent);
             notificationLogRepository.saveNotificationLog(logEntry);
-            String activationLink = "https://bankx.com/activate?key=" + userEvent.getActivationKey();
+            String activationLink = applicationConfig.getAppHost() + "/activate?key=" + userEvent.getActivationKey();
             emailService.sendActivationEmail(
                     userEvent.getEmail(),
                     activationLink,
@@ -118,7 +121,7 @@ public class NotificationService {
         try {
             NotificationLog logEntry = createPasswordResetLogEntry(event);
             notificationLogRepository.saveNotificationLog(logEntry);
-            String resetLink = "https://bankx.com/recover?key=" + event.getResetToken();
+            String resetLink = applicationConfig.getAppHost() + "/recover?key=" + event.getResetToken();
             emailService.sendPasswordResetEmail(
                     event.getEmail(),
                     resetLink,
@@ -143,8 +146,10 @@ public class NotificationService {
             throw appEx;
         }
     }
-
-    /**
+//todo: раскомментировать как появятся данные сценарии, шаблоны в БД уже заведены
+/*
+    */
+/**
      * Отправляет уведомление об успешной активации аккаунта.
      *
      * <p>Используется после подтверждения активации аккаунта пользователем
@@ -154,7 +159,8 @@ public class NotificationService {
      * @param firstName имя пользователя
      * @param lastName  фамилия пользователя
      * @throws ApplicationException если не удалось отправить уведомление
-     */
+     *//*
+
     public void notifyAccountActivated(String email, String firstName, String lastName) {
         try {
             emailService.sendAccountActivatedEmail(email, firstName, lastName);
@@ -169,7 +175,8 @@ public class NotificationService {
         }
     }
 
-    /**
+    */
+/**
      * Отправляет уведомление об успешном сбросе пароля.
      *
      * <p>Используется после успешного изменения пароля пользователем
@@ -179,7 +186,8 @@ public class NotificationService {
      * @param firstName имя пользователя
      * @param lastName  фамилия пользователя
      * @throws ApplicationException если не удалось отправить уведомление
-     */
+     *//*
+
     public void notifyPasswordResetSuccess(String email, String firstName, String lastName) {
         try {
             emailService.sendPasswordResetSuccessEmail(email, firstName, lastName);
@@ -193,6 +201,7 @@ public class NotificationService {
             );
         }
     }
+*/
 
     // Вспомогательные методы
 

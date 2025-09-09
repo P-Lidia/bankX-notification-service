@@ -18,6 +18,7 @@ import java.util.Properties;
 @ApplicationScoped
 public class ApplicationConfig {
     private Properties properties;
+    private String appHost;
 
     /**
      * Инициализирует свойства приложения, загружая их из файла application.properties.
@@ -30,6 +31,8 @@ public class ApplicationConfig {
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("application.properties")) {
             if (input != null) {
                 properties.load(input);
+                // Загружаем свойство app.host
+                this.appHost = properties.getProperty("app.host", "http://localhost:8083");
             } else {
                 throw new ApplicationException(
                         ErrorCode.CONFIGURATION_LOAD_ERROR,
@@ -45,6 +48,9 @@ public class ApplicationConfig {
         }
     }
 
+    public String getAppHost() {
+        return appHost;
+    }
     /**
      * Возвращает значение свойства по ключу или значение по умолчанию, если свойство не найдено.
      *
