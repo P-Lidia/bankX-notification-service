@@ -1,8 +1,10 @@
 package com.bankx.notification.exception;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Level;
+
 import jakarta.enterprise.context.ApplicationScoped;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Маппер для обработки и логирования исключений.
@@ -15,7 +17,7 @@ import java.util.logging.Logger;
  */
 @ApplicationScoped
 public class ExceptionMapper {
-    private static final Logger logger = Logger.getLogger(ExceptionMapper.class.getName());
+    private static final Logger logger = LogManager.getLogger(ExceptionMapper.class);
 
     /**
      * Обрабатывает ApplicationException с учетом его кода ошибки.
@@ -32,9 +34,8 @@ public class ExceptionMapper {
         // Логируем с соответствующим уровнем
         logger.log(logLevel, logMessage, exception);
 
-        // Здесь можно добавить дополнительную логику обработки:
+        //todo Здесь можно добавить дополнительную логику обработки:
         // - отправка уведомлений для критических ошибок
-        // - увеличение счетчиков метрик
         // - и т.д.
     }
 
@@ -69,21 +70,21 @@ public class ExceptionMapper {
             case CONFIGURATION_LOAD_ERROR:
             case DATABASE_OPERATION_ERROR:
             case KAFKA_OPERATION_ERROR:
-                return Level.SEVERE;
+                return Level.ERROR;
 
             case EMAIL_SEND_ERROR:
             case DESERIALIZATION_ERROR:
-                return Level.WARNING;
+                return Level.WARN;
 
             case DUPLICATE_EVENT_ERROR:
                 return Level.INFO;
 
             case EMAIL_TEMPLATE_NOT_FOUND:
-                return Level.WARNING;
+                return Level.WARN;
 
             case UNKNOWN_ERROR:
             default:
-                return Level.SEVERE;
+                return Level.ERROR;
         }
     }
 
