@@ -1,6 +1,8 @@
 package com.bankx.notification.service;
 
 import com.bankx.notification.config.ApplicationConfig;
+import com.bankx.notification.exception.ApplicationException;
+import com.bankx.notification.exception.ErrorCode;
 import com.bankx.notification.model.entity.EmailTemplate;
 import com.bankx.notification.repository.EmailTemplateRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -36,10 +38,10 @@ public class EmailService {
     private static final long RETRY_DELAY_MS = 2000;
 
     @Inject
-    private ApplicationConfig appConfig;
+    private ApplicationConfig applicationConfig;
 
     @Inject
-    private EmailTemplateRepository templateRepository;
+    private EmailTemplateRepository emailTemplateRepository;
 
     /**
      * Заменяет переменные в шаблоне на реальные значения.
@@ -68,16 +70,29 @@ public class EmailService {
      * @param templateType тип шаблона (регистрация, сброс пароля и т.д.)
      * @param toEmail      адрес получателя
      * @param variables    значения для подстановки в шаблон
-     * @throws RuntimeException если шаблон не найден или произошла ошибка отправки
+     * @throws ApplicationException если шаблон не найден или произошла ошибка отправки
      */
     public void sendTemplatedEmail(String templateType, String toEmail, Map<String, String> variables) {
-        EmailTemplate template = templateRepository.findByTemplateType(templateType);
+        EmailTemplate template = emailTemplateRepository.findByTemplateType(templateType);
         if (template == null) {
-            throw new RuntimeException("Template not found: " + templateType);
+            throw new ApplicationException(
+                    ErrorCode.EMAIL_TEMPLATE_NOT_FOUND,
+                    "Email template not found",
+                    "Template type: " + templateType
+            );
         }
-        String subject = processTemplate(template.getSubject(), variables);
-        String body = processTemplate(template.getBody(), variables);
-        sendEmailWithRetry(toEmail, subject, body, false);
+        try {
+            String subject = processTemplate(template.getSubject(), variables);
+            String body = processTemplate(template.getBody(), variables);
+            sendEmailWithRetry(toEmail, subject, body, false);
+        } catch (Exception e) {
+            throw new ApplicationException(
+                    ErrorCode.EMAIL_SEND_ERROR,
+                    "Failed to process email template",
+                    "Template type: " + templateType + ", To: " + toEmail,
+                    e
+            );
+        }
     }
 
     /**
@@ -147,30 +162,42 @@ public class EmailService {
      * @param subject тема письма
      * @param body    тело письма
      * @param isHtml  флаг, указывающий на HTML-формат письма
+     * @throws ApplicationException если не удалось отправить письмо после всех попыток
      */
     private void sendEmailWithRetry(String toEmail, String subject, String body, boolean isHtml) {
         int attempt = 0;
-        boolean success = false;
-        while (attempt < MAX_RETRIES && !success) {
+        Exception lastException = null;
+        while (attempt < MAX_RETRIES) {
             attempt++;
             try {
                 sendEmail(toEmail, subject, body, isHtml);
-                success = true;
                 LOG.info("Email successfully sent to: " + toEmail + " (attempt " + attempt + ")");
+                return; // Успешно отправлено, выходим из метода
             } catch (Exception e) {
+                lastException = e;
                 LOG.warning("Failed to send email to " + toEmail + " (attempt " + attempt + "): " + e.getMessage());
-                if (attempt >= MAX_RETRIES) {
-                    LOG.severe("All " + MAX_RETRIES + " attempts failed for: " + toEmail);
-                    throw new RuntimeException("Failed to send email after " + MAX_RETRIES + " attempts", e);
-                }
-                try {
-                    Thread.sleep(RETRY_DELAY_MS * attempt);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException("Email sending interrupted", ie);
+                if (attempt < MAX_RETRIES) {
+                    try {
+                        Thread.sleep(RETRY_DELAY_MS * attempt);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new ApplicationException(
+                                ErrorCode.EMAIL_SEND_ERROR,
+                                "Email sending interrupted",
+                                "To: " + toEmail,
+                                ie
+                        );
+                    }
                 }
             }
         }
+        // Если дошли до сюда, значит все попытки не удались
+        throw new ApplicationException(
+                ErrorCode.EMAIL_SEND_ERROR,
+                "Failed to send email after " + MAX_RETRIES + " attempts",
+                "To: " + toEmail + ", Subject: " + subject,
+                lastException
+        );
     }
 
     /**
@@ -180,21 +207,15 @@ public class EmailService {
      * @param subject тема письма
      * @param body    тело письма
      * @param isHtml  флаг, указывающий на HTML-формат письма
+     * @throws ApplicationException если произошла ошибка отправки
      */
     private void sendEmail(String toEmail, String subject, String body, boolean isHtml) {
-        String host = appConfig.getProperty("email.smtp.host");
-        String port = appConfig.getProperty("email.smtp.port");
-        String username = appConfig.getProperty("email.smtp.username");
-        String from = appConfig.getProperty("email.from.address", username);
-        String password = appConfig.getProperty("email.smtp.password");
-        LOG.info("Attempting to send email to: " + toEmail + " from: " + from);
         try {
-            Thread.sleep(1000 + (long) (Math.random() * 1000));
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Email sending interrupted", e);
-        }
-        try {
+            String host = applicationConfig.getProperty("email.smtp.host");
+            String port = applicationConfig.getProperty("email.smtp.port");
+            String username = applicationConfig.getProperty("email.smtp.username");
+            String from = applicationConfig.getProperty("email.from.address", username);
+            String password = applicationConfig.getProperty("email.smtp.password");
             Properties properties = new Properties();
             properties.put("mail.smtp.host", host);
             properties.put("mail.smtp.port", port);
@@ -203,9 +224,6 @@ public class EmailService {
             properties.put("mail.smtp.starttls.enable", "true");
             properties.put("mail.smtp.ssl.trust", host);
             properties.put("mail.debug", "true");
-            properties.put("mail.smtp.socketFactory.port", port);
-            properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
-            properties.put("mail.smtp.socketFactory.fallback", "false");
             Session session = Session.getInstance(properties, new Authenticator() {
                 @Override
                 protected PasswordAuthentication getPasswordAuthentication() {
@@ -216,9 +234,6 @@ public class EmailService {
             message.setFrom(new InternetAddress(from));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
             message.setSubject(subject, "UTF-8");
-            message.addHeader("Precedence", "bulk");
-            message.addHeader("X-Mailer", "BankX Notification Service");
-            message.addHeader("List-Unsubscribe", "<mailto:support@bankx.com>");
             if (isHtml) {
                 message.setContent(body, "text/html; charset=UTF-8");
             } else {
@@ -227,14 +242,26 @@ public class EmailService {
             Transport.send(message);
             LOG.info("Email successfully delivered to SMTP server for: " + toEmail);
         } catch (AuthenticationFailedException e) {
-            LOG.severe("SMTP authentication error: " + e.getMessage());
-            throw new RuntimeException("SMTP authentication failed", e);
+            throw new ApplicationException(
+                    ErrorCode.EMAIL_SEND_ERROR,
+                    "SMTP authentication failed",
+                    "Check email credentials",
+                    e
+            );
         } catch (MessagingException e) {
-            LOG.severe("Email sending error: " + e.getMessage());
-            throw new RuntimeException("Failed to send email", e);
+            throw new ApplicationException(
+                    ErrorCode.EMAIL_SEND_ERROR,
+                    "Failed to send email",
+                    "To: " + toEmail + ", Subject: " + subject,
+                    e
+            );
         } catch (Exception e) {
-            LOG.severe("Unexpected error: " + e.getMessage());
-            throw new RuntimeException("Unexpected error occurred", e);
+            throw new ApplicationException(
+                    ErrorCode.EMAIL_SEND_ERROR,
+                    "Unexpected error occurred while sending email",
+                    "To: " + toEmail,
+                    e
+            );
         }
     }
 }

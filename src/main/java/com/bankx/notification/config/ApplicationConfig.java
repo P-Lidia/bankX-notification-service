@@ -1,5 +1,7 @@
 package com.bankx.notification.config;
 
+import com.bankx.notification.exception.ApplicationException;
+import com.bankx.notification.exception.ErrorCode;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -19,21 +21,27 @@ public class ApplicationConfig {
 
     /**
      * Инициализирует свойства приложения, загружая их из файла application.properties.
+     *
+     * @throws ApplicationException если файл свойств не найден или не может быть прочитан
      */
     @PostConstruct
     public void initializeApplicationProperties() {
-        System.out.println("Loading application properties...");
         properties = new Properties();
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("application.properties")) {
             if (input != null) {
                 properties.load(input);
-                System.out.println("Application properties loaded: " + properties);
             } else {
-                System.err.println("Application properties file not found!");
+                throw new ApplicationException(
+                        ErrorCode.CONFIGURATION_LOAD_ERROR,
+                        "Application properties file not found in classpath"
+                );
             }
         } catch (IOException e) {
-            System.err.println("Failed to load application properties: " + e.getMessage());
-            e.printStackTrace();
+            throw new ApplicationException(
+                    ErrorCode.CONFIGURATION_LOAD_ERROR,
+                    "Failed to load application properties",
+                    e
+            );
         }
     }
 
@@ -50,12 +58,21 @@ public class ApplicationConfig {
     }
 
     /**
-     * Возвращает значение свойства по ключу.
+     * Возвращает значение свойства по ключу или выбрасывает исключение, если свойство не найдено.
+     * Используется для обязательных свойств конфигурации.
      *
      * @param key ключ свойства
-     * @return значение свойства или null, если свойство не найдено
+     * @return значение свойства
+     * @throws ApplicationException если свойство не найдено
      */
     public String getProperty(String key) {
-        return properties.getProperty(key);
+        String value = properties.getProperty(key);
+        if (value == null) {
+            throw new ApplicationException(
+                    ErrorCode.CONFIGURATION_LOAD_ERROR,
+                    "Required property not found: " + key
+            );
+        }
+        return value;
     }
 }
