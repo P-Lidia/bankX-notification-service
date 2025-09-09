@@ -17,7 +17,7 @@ import jakarta.enterprise.context.ApplicationScoped;
  */
 @ApplicationScoped
 public class ExceptionMapper {
-    private static final Logger logger = LogManager.getLogger(ExceptionMapper.class);
+    private static final Logger LOG = LogManager.getLogger(ExceptionMapper.class);
 
     /**
      * Обрабатывает ApplicationException с учетом его кода ошибки.
@@ -32,7 +32,7 @@ public class ExceptionMapper {
         String logMessage = buildLogMessage(exception);
 
         // Логируем с соответствующим уровнем
-        logger.log(logLevel, logMessage, exception);
+        LOG.log(logLevel, logMessage, exception);
 
         //todo Здесь можно добавить дополнительную логику обработки:
         // - отправка уведомлений для критических ошибок
