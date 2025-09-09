@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Сервис обработки уведомлений для системы BankX.
@@ -31,11 +32,15 @@ public class NotificationService {
     @Inject
     private NotificationLogRepository repository;
 
+    @Inject
+    private jakarta.validation.Validator validator;
+
     /**
      * Обрабатывает событие активации пользователя.
      *
      * <p>Метод выполняет следующие действия:
      * <ol>
+     *   <li>Валидирует входной обьект по аннотациям из ДТО</li>
      *   <li>Проверяет, не обрабатывалось ли уже событие с данным eventId</li>
      *   <li>Создает запись в логе уведомлений со статусом PROCESSING</li>
      *   <li>Формирует ссылку активации на основе activationKey</li>
@@ -48,6 +53,15 @@ public class NotificationService {
      * @throws RuntimeException если не удалось обработать событие активации
      */
     public void processUserActivation(UserRegistrationEvent userEvent) {
+        var violations = validator.validate(userEvent);
+        if (!violations.isEmpty()) {
+            String msg = violations.stream()
+                    .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                    .collect (Collectors.joining("; "));
+            log.warning("Validation failed for UserRegistrationEvent: " + msg);
+            throw new RuntimeException("Validation failed: " + msg);
+        }
+
         if (userEvent.getEventId() != null && repository.existsByEventId(userEvent.getEventId())) {
             log.info("Duplicate activation event " + userEvent.getEventId() + " — skip");
             return;
@@ -74,6 +88,7 @@ public class NotificationService {
      *
      * <p>Метод выполняет следующие действия:
      * <ol>
+     *   <li>Валидирует входной обьект по аннотациям из ДТО</li>
      *   <li>Проверяет, не обрабатывалось ли уже событие с данным eventId</li>
      *   <li>Создает запись в логе уведомлений со статусом PROCESSING</li>
      *   <li>Отправляет письмо сброса пароля через EmailService</li>
@@ -86,6 +101,15 @@ public class NotificationService {
      * @throws RuntimeException если не удалось обработать событие сброса пароля
      */
     public void processPasswordReset(UserResetPasswordEvent event) {
+        var violations = validator.validate(event);
+        if (!violations.isEmpty()) {
+            String msg = violations.stream()
+                    .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                    .collect(Collectors.joining("; "));
+            log.warning("Validation failed for UserResetPasswordEvent: " + msg);
+            throw new RuntimeException("Validation failed: " + msg);
+        }
+
         if (event.getEventId() != null && repository.existsByEventId(event.getEventId())) {
             log.info("Duplicate reset event " + event.getEventId() + " — skip");
             return;

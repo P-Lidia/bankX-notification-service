@@ -1,5 +1,7 @@
 package com.bankx.notification.model.dto;
 
+import jakarta.validation.constraints.*;
+
 import java.util.Objects;
 
 /**
@@ -7,12 +9,26 @@ import java.util.Objects;
  *
  * <p>Содержит информацию, необходимую для обработки запроса на сброс пароля
  * и отправки соответствующего уведомления (письма со ссылкой для сброса пароля).
+ *
+ * <p>Для обеспечения корректности данных в классе используются
+ * аннотации валидации Jakarta Bean Validation.
  */
 public class UserResetPasswordEvent {
     private String eventId;
+
+    @NotBlank(message = "Электронная почта обязательна")
+    @Size(max = 100, message = "Электронная почта не должна превышать 100 символов")
+    @Email(message = "Введите корректный адрес электронной почты")
     private String email;
+
+    @Size(max = 50, message = "Имя не должно превышать 50 символов")
     private String firstName;
+
+    @Size(max = 50, message = "Фамилия не должна превышать 50 символов")
     private String lastName;
+
+    @NotBlank(message = "Токен для сброса пароля обязателен")
+    @Size(min = 16, max = 128, message = "Токен для сброса пароля должен быть длиной от 16 до 128 символов")
     private String resetToken;
 
     /**
