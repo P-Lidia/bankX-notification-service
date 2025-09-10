@@ -19,6 +19,11 @@ public enum ErrorCode {
     DATABASE_OPERATION_ERROR,
 
     /**
+     * Ошибка валидации
+     */
+    VALIDATION_ERROR,
+
+    /**
      * Ошибка отправки email
      */
     EMAIL_SEND_ERROR,

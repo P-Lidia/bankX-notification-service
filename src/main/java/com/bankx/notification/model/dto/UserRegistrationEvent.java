@@ -2,18 +2,32 @@ package com.bankx.notification.model.dto;
 
 import java.util.Objects;
 import java.util.UUID;
+import jakarta.validation.constraints.*;
 
 /**
  * DTO класс, представляющий событие регистрации пользователя.
  *
  * <p>Содержит информацию, необходимую для обработки регистрации нового пользователя
  * и отправки соответствующего уведомления (письма активации аккаунта).
+ *
+ * <p>Для обеспечения корректности данных использует
+ * аннотации валидации Jakarta Bean Validation.
  */
 public class UserRegistrationEvent {
     private String eventId;
+
+    @NotNull(message = "Ключ активации обязателен")
     private UUID activationKey;
+
+    @NotBlank(message = "Электронная почта обязательна")
+    @Size(max = 100, message = "Электронная почта не должна превышать 100 символов")
+    @Email(message = "Введите корректный адрес электронной почты")
     private String email;
+
+    @Size(max = 50, message = "Имя не должно превышать 50 символов")
     private String firstName;
+
+    @Size(max = 50, message = "Фамилия не должна превышать 50 символов")
     private String lastName;
 
     /**
