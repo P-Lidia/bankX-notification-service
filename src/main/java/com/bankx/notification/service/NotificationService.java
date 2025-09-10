@@ -12,6 +12,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Сервис обработки уведомлений для системы BankX.
@@ -29,6 +30,9 @@ public class NotificationService {
     private static final Logger LOG = Logger.getLogger(NotificationService.class.getName());
 
     @Inject
+    private jakarta.validation.Validator validator;
+
+    @Inject
     private EmailService emailService;
 
     @Inject
@@ -44,6 +48,7 @@ public class NotificationService {
      *
      * <p>Метод выполняет следующие действия:
      * <ol>
+     *   <li>Валидирует входной объект по аннотациям из ДТО</li>
      *   <li>Проверяет, не обрабатывалось ли уже событие с данным eventId</li>
      *   <li>Создает запись в логе уведомлений со статусом PROCESSING</li>
      *   <li>Формирует ссылку активации на основе activationKey</li>
@@ -56,6 +61,15 @@ public class NotificationService {
      * @throws ApplicationException если не удалось обработать событие активации
      */
     public void processUserActivation(UserRegistrationEvent userEvent) {
+        var violations = validator.validate(userEvent);
+        if (!violations.isEmpty()) {
+            String msg = violations.stream()
+                    .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                    .collect (Collectors.joining("; "));
+            LOG.warning("Validation failed for UserRegistrationEvent: " + msg);
+            throw new ApplicationException (ErrorCode.VALIDATION_ERROR,
+                    "Validation failed", msg);
+        }
         // Проверяем дубликат события
         if (userEvent.getEventId() != null && notificationLogRepository.existsByEventId(userEvent.getEventId())) {
             throw new ApplicationException(
@@ -98,6 +112,7 @@ public class NotificationService {
      *
      * <p>Метод выполняет следующие действия:
      * <ol>
+     *   <li>Валидирует входной объект по аннотациям из ДТО</li>
      *   <li>Проверяет, не обрабатывалось ли уже событие с данным eventId</li>
      *   <li>Создает запись в логе уведомлений со статусом PROCESSING</li>
      *   <li>Отправляет письмо сброса пароля через EmailService</li>
@@ -110,6 +125,15 @@ public class NotificationService {
      * @throws ApplicationException если не удалось обработать событие сброса пароля
      */
     public void processPasswordReset(UserResetPasswordEvent event) {
+        var violations = validator.validate(event);
+        if (!violations.isEmpty()) {
+            String msg = violations.stream()
+                    .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                    .collect(Collectors.joining("; "));
+            LOG.warning("Validation failed for UserResetPasswordEvent: " + msg);
+            throw new ApplicationException (ErrorCode.VALIDATION_ERROR,
+                    "Validation failed", msg);
+        }
         // Проверяем дубликат события
         if (event.getEventId() != null && notificationLogRepository.existsByEventId(event.getEventId())) {
             throw new ApplicationException(
