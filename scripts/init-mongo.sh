@@ -65,13 +65,16 @@ const now = new Date();
 // Шаблон регистрации
 insertTemplateIfNotExists({
   templateType: "registration",
-  subject: "Активация аккаунта в BankX",
-  body: "<p>Уважаемый(ая) <strong>\\\${firstName} \\\${lastName}</strong>,</p>" +
-        "<p>Для активации вашего аккаунта перейдите по ссылке:</p>" +
-        "<p><a href='\\\${activationLink}'>\\\${activationLink}</a></p>" +
-        "<p>Если вы не регистрировались, просто проигнорируйте это сообщение.</p>" +
-        "<br>" +
-        "<p>С уважением,<br>Команда BankX</p>",
+  subject: "🌸 Активация аккаунта в BankX",
+  body:
+    "<div style='background-color: #FFC0CB; padding: 20px;'>" +
+    "<p>Уважаемый(ая) <strong>\\\${firstName} \\\${lastName}</strong>,</p>" +
+    "<p>Для активации вашего аккаунта перейдите по ссылке:</p>" +
+    "<p><a href='\\\${activationLink}'>\\\${activationLink}</a></p>" +
+    "<p>Если вы не регистрировались, просто проигнорируйте это сообщение.</p>" +
+    "<br>" +
+    "<p>С уважением,<br>Команда BankX</p>" +
+    "</div>",
   variables: ["firstName", "lastName", "activationLink"],
   isActive: true,
   isHtml: true,
@@ -79,16 +82,18 @@ insertTemplateIfNotExists({
   updatedAt: now
 });
 
-// Шаблон запроса на сброс пароля
 insertTemplateIfNotExists({
   templateType: "password_reset_request",
-  subject: "Запрос на сброс пароля BankX",
-  body: "<p>Уважаемый(ая) <strong>\\\${firstName} \\\${lastName}</strong>,</p>" +
-        "<p>Для восстановления пароля перейдите по ссылке:</p>" +
-        "<p><a href='\\\${resetLink}'>\\\${resetLink}</a></p>" +
-        "<p>Если вы не запрашивали сброс пароля, просто проигнорируйте это сообщение.</p>" +
-        "<br>" +
-        "<p>С уважением,<br>Команда BankX</p>",
+  subject: "❤️‍🩹 Запрос на сброс пароля BankX",
+  body:
+    "<div style='background-color: #e0f8e0; padding: 20px;'>" +
+    "<p>Уважаемый(ая) <strong>\\\${firstName} \\\${lastName}</strong>,</p>" +
+    "<p>Для восстановления пароля перейдите по ссылке:</p>" +
+    "<p><a href='\\\${resetLink}'>\\\${resetLink}</a></p>" +
+    "<p>Если вы не запрашивали сброс пароля, просто проигнорируйте это сообщение.</p>" +
+    "<br>" +
+    "<p>С уважением,<br>Команда BankX</p>" +
+    "</div>",
   variables: ["firstName", "lastName", "resetLink"],
   isActive: true,
   isHtml: true,

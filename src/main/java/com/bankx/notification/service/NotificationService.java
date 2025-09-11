@@ -40,6 +40,7 @@ public class NotificationService {
 
     @Inject
     private ExceptionMapper exceptionMapper;
+
     @Inject
     private ApplicationConfig applicationConfig;
 
@@ -81,7 +82,7 @@ public class NotificationService {
         try {
             NotificationLog logEntry = createActivationLogEntry(userEvent);
             notificationLogRepository.saveNotificationLog(logEntry);
-            String activationLink = applicationConfig.getAppHost() + "/activate?key=" + userEvent.getActivationKey();
+            String activationLink = applicationConfig.getAppHost() + "/auth/activate?token=" + userEvent.getActivationKey();
             emailService.sendActivationEmail(
                     userEvent.getEmail(),
                     activationLink,
@@ -145,7 +146,7 @@ public class NotificationService {
         try {
             NotificationLog logEntry = createPasswordResetLogEntry(event);
             notificationLogRepository.saveNotificationLog(logEntry);
-            String resetLink = applicationConfig.getAppHost() + "/recover?key=" + event.getResetToken();
+            String resetLink = applicationConfig.getAppHost() + "/auth/reset-password?token=" + event.getResetToken();
             emailService.sendPasswordResetEmail(
                     event.getEmail(),
                     resetLink,
