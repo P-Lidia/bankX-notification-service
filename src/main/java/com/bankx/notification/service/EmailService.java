@@ -5,18 +5,23 @@ import com.bankx.notification.exception.ApplicationException;
 import com.bankx.notification.exception.ErrorCode;
 import com.bankx.notification.model.entity.EmailTemplate;
 import com.bankx.notification.repository.EmailTemplateRepository;
+import freemarker.cache.StringTemplateLoader;
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.mail.*;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 
+import java.io.IOException;
+import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Сервис для отправки электронных писем с использованием шаблонов из MongoDB.
@@ -33,9 +38,9 @@ import java.util.regex.Pattern;
 @ApplicationScoped
 public class EmailService {
     private static final Logger LOG = Logger.getLogger(EmailService.class.getName());
-    private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\{\\{(\\w+)\\}\\}");
     private static final int MAX_RETRIES = 3;
     private static final long RETRY_DELAY_MS = 2000;
+    private Configuration freemarkerConfig;
 
     @Inject
     private ApplicationConfig applicationConfig;
@@ -43,25 +48,54 @@ public class EmailService {
     @Inject
     private EmailTemplateRepository emailTemplateRepository;
 
+    @PostConstruct
+    public void init() {
+        freemarkerConfig = new Configuration(Configuration.VERSION_2_3_32);
+    }
+
     /**
-     * Заменяет переменные в шаблоне на реальные значения.
+     * Обрабатывает шаблон текста с переменными, подставляя их в шаблон.
      *
-     * <p>Переменные в шаблоне должны быть оформлены в двойных фигурных скобках: {{variableName}}
+     * <p>Переменные в шаблоне оформлены в виде ${variableName} — синтаксис FreeMarker.
+     * Для обработки используется библиотека FreeMarker, позволяющая динамически заменить
+     * все такие переменные на соответствующие значения из карты variables.
      *
-     * @param template  шаблон текста с переменными
-     * @param variables карта значений для подстановки в шаблон
+     * @param templateContent шаблон текста с переменными в формате ${variableName}
+     * @param variables       карта значений для подстановки в шаблон
      * @return обработанный текст с подставленными значениями
      */
-    private String processTemplate(String template, Map<String, String> variables) {
-        Matcher matcher = VARIABLE_PATTERN.matcher(template);
-        StringBuffer result = new StringBuffer();
-        while (matcher.find()) {
-            String variableName = matcher.group(1);
-            String replacement = variables.get(variableName);
-            matcher.appendReplacement(result, replacement != null ? replacement : "");
+    private String processTemplate(String templateContent, Map<String, Object> variables) {
+        try {
+            StringTemplateLoader stringLoader = new StringTemplateLoader();
+            String templateName = "template";
+            stringLoader.putTemplate(templateName, templateContent);
+            freemarkerConfig.setTemplateLoader(stringLoader);
+            Template template = freemarkerConfig.getTemplate(templateName);
+            StringWriter writer = new StringWriter();
+            template.process(variables, writer);
+            return writer.toString();
+        } catch (IOException e) {
+            throw new ApplicationException(
+                    ErrorCode.EMAIL_TEMPLATE_NOT_FOUND,
+                    "Failed to load email template",
+                    e.getMessage(),
+                    e
+            );
+        } catch (TemplateException e) {
+            throw new ApplicationException(
+                    ErrorCode.VALIDATION_ERROR,
+                    "Template processing error",
+                    e.getMessage(),
+                    e
+            );
+        } catch (Exception e) {
+            throw new ApplicationException(
+                    ErrorCode.UNKNOWN_ERROR,
+                    "Unexpected error during template processing",
+                    e.getMessage(),
+                    e
+            );
         }
-        matcher.appendTail(result);
-        return result.toString();
     }
 
     /**
@@ -82,9 +116,10 @@ public class EmailService {
             );
         }
         try {
-            String subject = processTemplate(template.getSubject(), variables);
-            String body = processTemplate(template.getBody(), variables);
-            sendEmailWithRetry(toEmail, subject, body, false);
+            Map<String, Object> varsForFreeMarker = new HashMap<>(variables);
+            String subject = processTemplate(template.getSubject(), varsForFreeMarker);
+            String body = processTemplate(template.getBody(), varsForFreeMarker);
+            sendEmailWithRetry(toEmail, subject, body);
         } catch (Exception e) {
             throw new ApplicationException(
                     ErrorCode.EMAIL_SEND_ERROR,
@@ -161,18 +196,17 @@ public class EmailService {
      * @param toEmail адрес получателя
      * @param subject тема письма
      * @param body    тело письма
-     * @param isHtml  флаг, указывающий на HTML-формат письма
      * @throws ApplicationException если не удалось отправить письмо после всех попыток
      */
-    private void sendEmailWithRetry(String toEmail, String subject, String body, boolean isHtml) {
+    private void sendEmailWithRetry(String toEmail, String subject, String body) {
         int attempt = 0;
         Exception lastException = null;
         while (attempt < MAX_RETRIES) {
             attempt++;
             try {
-                sendEmail(toEmail, subject, body, isHtml);
+                sendEmail(toEmail, subject, body);
                 LOG.info("Email successfully sent to: " + toEmail + " (attempt " + attempt + ")");
-                return; // Успешно отправлено, выходим из метода
+                return;
             } catch (Exception e) {
                 lastException = e;
                 LOG.warning("Failed to send email to " + toEmail + " (attempt " + attempt + "): " + e.getMessage());
@@ -191,7 +225,6 @@ public class EmailService {
                 }
             }
         }
-        // Если дошли до сюда, значит все попытки не удались
         throw new ApplicationException(
                 ErrorCode.EMAIL_SEND_ERROR,
                 "Failed to send email after " + MAX_RETRIES + " attempts",
@@ -206,10 +239,9 @@ public class EmailService {
      * @param toEmail адрес получателя
      * @param subject тема письма
      * @param body    тело письма
-     * @param isHtml  флаг, указывающий на HTML-формат письма
      * @throws ApplicationException если произошла ошибка отправки
      */
-    private void sendEmail(String toEmail, String subject, String body, boolean isHtml) {
+    private void sendEmail(String toEmail, String subject, String body) {
         try {
             String host = applicationConfig.getProperty("email.smtp.host");
             String port = applicationConfig.getProperty("email.smtp.port");
@@ -234,11 +266,7 @@ public class EmailService {
             message.setFrom(new InternetAddress(from));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
             message.setSubject(subject, "UTF-8");
-            if (isHtml) {
-                message.setContent(body, "text/html; charset=UTF-8");
-            } else {
-                message.setText(body, "UTF-8");
-            }
+            message.setContent(body, "text/html; charset=UTF-8");
             Transport.send(message);
             LOG.info("Email successfully delivered to SMTP server for: " + toEmail);
         } catch (AuthenticationFailedException e) {
