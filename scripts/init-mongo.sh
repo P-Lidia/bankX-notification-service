@@ -62,50 +62,70 @@ function insertTemplateIfNotExists(template) {
 
 const now = new Date();
 
-// Вставляем шаблон для регистрации
+// Шаблон регистрации
 insertTemplateIfNotExists({
   templateType: "registration",
   subject: "Активация аккаунта в BankX",
-  body: "Уважаемый(ая) {{firstName}} {{lastName}}, для активации вашего аккаунта перейдите по ссылке: {{activationLink}}",
-  variables: ["firstName", "lastName", "activationLink"], // Переменные для подстановки в шаблон
-  isActive: true,   // Шаблон активен и будет использоваться
-  isHtml: false,    // Шаблон в текстовом формате (не HTML)
+  body: "<p>Уважаемый(ая) <strong>\\\${firstName} \\\${lastName}</strong>,</p>" +
+        "<p>Для активации вашего аккаунта перейдите по ссылке:</p>" +
+        "<p><a href='\\\${activationLink}'>\\\${activationLink}</a></p>" +
+        "<p>Если вы не регистрировались, просто проигнорируйте это сообщение.</p>" +
+        "<br>" +
+        "<p>С уважением,<br>Команда BankX</p>",
+  variables: ["firstName", "lastName", "activationLink"],
+  isActive: true,
+  isHtml: true,
   createdAt: now,
   updatedAt: now
 });
 
-// Вставляем шаблон для запроса сброса пароля
+// Шаблон запроса на сброс пароля
 insertTemplateIfNotExists({
   templateType: "password_reset_request",
   subject: "Запрос на сброс пароля BankX",
-  body: "Уважаемый(ая) {{firstName}} {{lastName}}! Для восстановления пароля перейдите по ссылке: {{resetLink}}",
+  body: "<p>Уважаемый(ая) <strong>\\\${firstName} \\\${lastName}</strong>,</p>" +
+        "<p>Для восстановления пароля перейдите по ссылке:</p>" +
+        "<p><a href='\\\${resetLink}'>\\\${resetLink}</a></p>" +
+        "<p>Если вы не запрашивали сброс пароля, просто проигнорируйте это сообщение.</p>" +
+        "<br>" +
+        "<p>С уважением,<br>Команда BankX</p>",
   variables: ["firstName", "lastName", "resetLink"],
   isActive: true,
-  isHtml: false,
+  isHtml: true,
   createdAt: now,
   updatedAt: now
 });
 
-// Вставляем шаблон для уведомления об успешном сбросе пароля
+// Шаблон успешного сброса пароля
 insertTemplateIfNotExists({
   templateType: "password_reset_success",
   subject: "Пароль BankX изменен",
-  body: "Уважаемый(ая) {{firstName}} {{lastName}}, ваш пароль был изменен",
+  body: "<p>Уважаемый(ая) <strong>\\\${firstName} \\\${lastName}</strong>,</p>" +
+        "<p>Ваш пароль был успешно изменен.</p>" +
+        "<br>" +
+        "<p>Если это были не вы, немедленно свяжитесь с нашей поддержкой.</p>" +
+        "<br>" +
+        "<p>С уважением,<br>Команда BankX</p>",
   variables: ["firstName", "lastName"],
   isActive: true,
-  isHtml: false,
+  isHtml: true,
   createdAt: now,
   updatedAt: now
 });
 
-// Вставляем шаблон для уведомления об успешной активации аккаунта
+// Шаблон успешной активации аккаунта
 insertTemplateIfNotExists({
   templateType: "account_activated",
   subject: "Успешная регистрация в BankX",
-  body: "Уважаемый(ая) {{firstName}} {{lastName}}, поздравляем вас с успешной регистрацией в BankX!",
+  body: "<p>Уважаемый(ая) <strong>\\\${firstName} \\\${lastName}</strong>,</p>" +
+        "<p>Поздравляем вас с успешной регистрацией в BankX!</p>" +
+        "<br>" +
+        "<p>Теперь вы можете войти в свой аккаунт и использовать все возможности нашего сервиса.</p>" +
+        "<br>" +
+        "<p>С уважением,<br>Команда BankX</p>",
   variables: ["firstName", "lastName"],
   isActive: true,
-  isHtml: false,
+  isHtml: true,
   createdAt: now,
   updatedAt: now
 });
