@@ -51,37 +51,8 @@ public class EmailTemplateRepository {
         return getEmailTemplatesCollection().find(query).first();
     }
 
-    /**
-     * Сохраняет новый шаблон письма в базе данных.
-     *
-     * @param template шаблон письма для сохранения
-     * @return сохраненный шаблон
-     */
-    public EmailTemplate saveEmailTemplate(EmailTemplate template) {
-        getEmailTemplatesCollection().insertOne(template);
-        return template;
-    }
 
-    /**
-     * Обновляет существующий шаблон письма.
-     *
-     * @param template обновленный шаблон письма
-     */
-    public void updateEmailTemplate(EmailTemplate template) {
-        Bson filter = Filters.eq("_id", template.getId());
-        getEmailTemplatesCollection().replaceOne(filter, template);
-    }
 
-    /**
-     * Деактивирует шаблон письма по его типу.
-     *
-     * @param templateType тип шаблона для деактивации
-     */
-    public void deactivateEmailTemplate(String templateType) {
-        Bson filter = Filters.eq("templateType", templateType);
-        Bson update = new org.bson.Document("$set",
-                new org.bson.Document("isActive", false)
-                        .append("updatedAt", java.time.LocalDateTime.now()));
-        getEmailTemplatesCollection().updateOne(filter, update);
-    }
+
+
 }

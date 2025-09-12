@@ -42,12 +42,22 @@ db.createUser({
 });
 EOF
 
-# Инициализируем коллекции и данные с проверкой существования шаблонов
+# Инициализируем коллекции
 mongosh --host mongodb --port 27017 -u appuser -p apppassword --authenticationDatabase bankx-notification <<EOF
 use bankx-notification;
 
 // Создаем коллекцию шаблонов писем (если не существует)
 db.createCollection('email_templates');
+
+// Создаем коллекцию для логов уведомлений (если не существует)
+db.createCollection('notification_logs');
+
+// Создаем индексы для логов
+db.notification_logs.createIndex({ "email": 1 });
+db.notification_logs.createIndex({ "activation_key": 1 });
+db.notification_logs.createIndex({ "reset_token": 1 });
+db.notification_logs.createIndex({ "created_at": 1 });
+db.notification_logs.createIndex({ "status": 1 });
 
 // Функция для вставки шаблона, если его нет
 function insertTemplateIfNotExists(template) {
@@ -67,9 +77,9 @@ insertTemplateIfNotExists({
   templateType: "registration",
   subject: "Активация аккаунта в BankX",
   body: "Уважаемый(ая) {{firstName}} {{lastName}}, для активации вашего аккаунта перейдите по ссылке: {{activationLink}}",
-  variables: ["firstName", "lastName", "activationLink"], // Переменные для подстановки в шаблон
-  isActive: true,   // Шаблон активен и будет использоваться
-  isHtml: false,    // Шаблон в текстовом формате (не HTML)
+  variables: ["firstName", "lastName", "activationLink"],
+  isActive: true,
+  isHtml: false,
   createdAt: now,
   updatedAt: now
 });

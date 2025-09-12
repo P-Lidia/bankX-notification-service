@@ -17,6 +17,8 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 
 import java.time.Duration;
@@ -184,6 +186,12 @@ public class UserRegistrationConsumer {
 
                         notificationService.processUserActivation(userEvent);
                         LOG.info("Successfully processed user event for: " + userEvent.getEmail());
+
+// Явный коммит offset после успешной обработки
+                        consumer.commitSync(Collections.singletonMap(
+                                new TopicPartition(record.topic(), record.partition()),
+                                new OffsetAndMetadata(record.offset() + 1)
+                        ));
                     } catch (ApplicationException e) {
                         // Обрабатываем известные исключения
                         exceptionMapper.handleException(e);

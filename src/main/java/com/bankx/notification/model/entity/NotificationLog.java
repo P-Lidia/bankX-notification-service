@@ -15,8 +15,6 @@ import java.util.UUID;
 public class NotificationLog {
     private ObjectId id;
 
-    private String eventId;
-
     @BsonProperty("event_type")
     private String eventType;
 
@@ -55,38 +53,12 @@ public class NotificationLog {
         this.attemptCount = 0;
     }
 
-    /**
-     * Конструктор с параметрами для создания лога уведомления.
-     *
-     * @param activationKey ключ активации
-     * @param eventType     тип события
-     * @param email         адрес электронной почты
-     * @param createdAt     время создания
-     * @param errorMessage  сообщение об ошибке
-     */
-    public NotificationLog(UUID activationKey, String eventType,
-                           String email, LocalDateTime createdAt, String errorMessage) {
-        this.activationKey = activationKey;
-        this.eventType = eventType;
-        this.email = email;
-        this.createdAt = createdAt;
-        this.errorMessage = errorMessage;
-    }
-
     public ObjectId getId() {
         return id;
     }
 
     public void setId(ObjectId id) {
         this.id = id;
-    }
-
-    public String getEventId() {
-        return eventId;
-    }
-
-    public void setEventId(String eventId) {
-        this.eventId = eventId;
     }
 
     public String getEventType() {

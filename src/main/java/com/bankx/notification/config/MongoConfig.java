@@ -42,7 +42,7 @@ public class MongoConfig {
      */
     @PostConstruct
     public void initializeMongoConfiguration() {
-        connectionString = applicationConfig.getProperty("mongodb.connection.string", "mongodb://admin:password@mongodb:27017/bankx-notification?authSource=admin");
+        connectionString = applicationConfig.getProperty("mongodb.connection.string", "mongodb://appuser:apppassword@mongodb:27017/bankx-notification?authSource=bankx-notification");
         databaseName = applicationConfig.getProperty("mongodb.database", "bankx-notification");
         LOG.info("MongoDB configuration initialized. Database: " + databaseName);
     }
