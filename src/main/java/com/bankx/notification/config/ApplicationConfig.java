@@ -32,7 +32,7 @@ public class ApplicationConfig {
             if (input != null) {
                 properties.load(input);
                 // Загружаем свойство app.host
-                this.appHost = properties.getProperty("app.host", "http://localhost:8083");
+                this.appHost = properties.getProperty("app.host", "http://localhost:8080");
             } else {
                 throw new ApplicationException(
                         ErrorCode.CONFIGURATION_LOAD_ERROR,
