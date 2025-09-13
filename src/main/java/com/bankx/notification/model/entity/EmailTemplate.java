@@ -26,14 +26,14 @@ public class EmailTemplate {
     @BsonProperty("isActive")
     private Boolean isActive;
 
+    @BsonProperty("isHtml")
+    private Boolean isHtml;
+
     @BsonProperty("createdAt")
     private Date createdAt;
 
     @BsonProperty("updatedAt")
     private Date updatedAt;
-
-    @BsonProperty("isHtml")
-    private Boolean isHtml;
 
     public ObjectId getId() {
         return id;
@@ -83,6 +83,14 @@ public class EmailTemplate {
         this.isActive = isActive;
     }
 
+    public Boolean getIsHtml() {
+        return isHtml;
+    }
+
+    public void setIsHtml(Boolean isHtml) {
+        this.isHtml = isHtml;
+    }
+
     public Date getCreatedAt() {
         return createdAt;
     }
@@ -97,13 +105,5 @@ public class EmailTemplate {
 
     public void setUpdatedAt(Date updatedAt) {
         this.updatedAt = updatedAt;
-    }
-
-    public Boolean getIsHtml() {
-        return isHtml;
-    }
-
-    public void setIsHtml(Boolean isHtml) {
-        this.isHtml = isHtml;
     }
 }

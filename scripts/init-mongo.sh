@@ -42,12 +42,22 @@ db.createUser({
 });
 EOF
 
-# Инициализируем коллекции и данные с проверкой существования шаблонов
+# Инициализируем коллекции
 mongosh --host mongodb --port 27017 -u appuser -p apppassword --authenticationDatabase bankx-notification <<EOF
 use bankx-notification;
 
 // Создаем коллекцию шаблонов писем (если не существует)
 db.createCollection('email_templates');
+
+// Создаем коллекцию для логов уведомлений (если не существует)
+db.createCollection('notification_logs');
+
+// Создаем индексы для логов
+db.notification_logs.createIndex({ "email": 1 });
+db.notification_logs.createIndex({ "activation_key": 1 });
+db.notification_logs.createIndex({ "reset_token": 1 });
+db.notification_logs.createIndex({ "created_at": 1 });
+db.notification_logs.createIndex({ "status": 1 });
 
 // Функция для вставки шаблона, если его нет
 function insertTemplateIfNotExists(template) {
@@ -62,15 +72,15 @@ function insertTemplateIfNotExists(template) {
 
 const now = new Date();
 
-// Шаблон регистрации
+// Вставляем шаблон для регистрации
 insertTemplateIfNotExists({
   templateType: "registration",
   subject: "🌸 Активация аккаунта в BankX",
   body:
     "<div style='background-color: #FFC0CB; padding: 20px;'>" +
-    "<p>Уважаемый(ая) <strong>\\\${firstName} \\\${lastName}</strong>,</p>" +
+    "<p>Уважаемый(ая) <strong>\${firstName} \${lastName}</strong>,</p>" +
     "<p>Для активации вашего аккаунта перейдите по ссылке:</p>" +
-    "<p><a href='\\\${activationLink}'>\\\${activationLink}</a></p>" +
+    "<p><a href='\${activationLink}'>\${activationLink}</a></p>" +
     "<p>Если вы не регистрировались, просто проигнорируйте это сообщение.</p>" +
     "<br>" +
     "<p>С уважением,<br>Команда BankX</p>" +
@@ -82,14 +92,15 @@ insertTemplateIfNotExists({
   updatedAt: now
 });
 
+// Вставляем шаблон для запроса сброса пароля
 insertTemplateIfNotExists({
   templateType: "password_reset_request",
   subject: "❤️‍🩹 Запрос на сброс пароля BankX",
   body:
     "<div style='background-color: #e0f8e0; padding: 20px;'>" +
-    "<p>Уважаемый(ая) <strong>\\\${firstName} \\\${lastName}</strong>,</p>" +
+    "<p>Уважаемый(ая) <strong>\${firstName} \${lastName}</strong>,</p>" +
     "<p>Для восстановления пароля перейдите по ссылке:</p>" +
-    "<p><a href='\\\${resetLink}'>\\\${resetLink}</a></p>" +
+    "<p><a href='\${resetLink}'>\${resetLink}</a></p>" +
     "<p>Если вы не запрашивали сброс пароля, просто проигнорируйте это сообщение.</p>" +
     "<br>" +
     "<p>С уважением,<br>Команда BankX</p>" +
@@ -101,36 +112,26 @@ insertTemplateIfNotExists({
   updatedAt: now
 });
 
-// Шаблон успешного сброса пароля
+// Вставляем шаблон для уведомления об успешном сбросе пароля
 insertTemplateIfNotExists({
   templateType: "password_reset_success",
   subject: "Пароль BankX изменен",
-  body: "<p>Уважаемый(ая) <strong>\\\${firstName} \\\${lastName}</strong>,</p>" +
-        "<p>Ваш пароль был успешно изменен.</p>" +
-        "<br>" +
-        "<p>Если это были не вы, немедленно свяжитесь с нашей поддержкой.</p>" +
-        "<br>" +
-        "<p>С уважением,<br>Команда BankX</p>",
+  body: "Уважаемый(ая) \${firstName} \${lastName}, ваш пароль был изменен",
   variables: ["firstName", "lastName"],
   isActive: true,
-  isHtml: true,
+  isHtml: false,
   createdAt: now,
   updatedAt: now
 });
 
-// Шаблон успешной активации аккаунта
+// Вставляем шаблон для уведомления об успешной активации аккаунта
 insertTemplateIfNotExists({
   templateType: "account_activated",
   subject: "Успешная регистрация в BankX",
-  body: "<p>Уважаемый(ая) <strong>\\\${firstName} \\\${lastName}</strong>,</p>" +
-        "<p>Поздравляем вас с успешной регистрацией в BankX!</p>" +
-        "<br>" +
-        "<p>Теперь вы можете войти в свой аккаунт и использовать все возможности нашего сервиса.</p>" +
-        "<br>" +
-        "<p>С уважением,<br>Команда BankX</p>",
+  body: "Уважаемый(ая) \${firstName} \${lastName}, поздравляем вас с успешной регистрацией в BankX!",
   variables: ["firstName", "lastName"],
   isActive: true,
-  isHtml: true,
+  isHtml: false,
   createdAt: now,
   updatedAt: now
 });

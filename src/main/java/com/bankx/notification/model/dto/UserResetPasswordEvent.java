@@ -1,6 +1,7 @@
 package com.bankx.notification.model.dto;
 
 import java.util.Objects;
+
 import jakarta.validation.constraints.*;
 
 /**
@@ -9,11 +10,10 @@ import jakarta.validation.constraints.*;
  * <p>Содержит информацию, необходимую для обработки запроса на сброс пароля
  * и отправки соответствующего уведомления (письма со ссылкой для сброса пароля).
  *
- *  <p>Для обеспечения корректности данных использует
- *  аннотации валидации Jakarta Bean Validation.
+ * <p>Для обеспечения корректности данных использует
+ * аннотации валидации Jakarta Bean Validation.
  */
 public class UserResetPasswordEvent {
-    private String eventId;
 
     @NotBlank(message = "Электронная почта обязательна")
     @Size(max = 100, message = "Электронная почта не должна превышать 100 символов")
@@ -39,27 +39,17 @@ public class UserResetPasswordEvent {
     /**
      * Создает событие сброса пароля пользователя с указанными данными.
      *
-     * @param eventId    идентификатор события
      * @param email      электронная почта пользователя
      * @param firstName  имя пользователя
      * @param lastName   фамилия пользователя
      * @param resetToken токен для сброса пароля
      */
-    public UserResetPasswordEvent(String eventId, String email, String firstName,
+    public UserResetPasswordEvent(String email, String firstName,
                                   String lastName, String resetToken) {
-        this.eventId = eventId;
         this.email = email;
         this.firstName = firstName;
         this.lastName = lastName;
         this.resetToken = resetToken;
-    }
-
-    public String getEventId() {
-        return eventId;
-    }
-
-    public void setEventId(String eventId) {
-        this.eventId = eventId;
     }
 
     public String getEmail() {
@@ -101,8 +91,8 @@ public class UserResetPasswordEvent {
      */
     @Override
     public String toString() {
-        return "UserResetPasswordEvent{" + "eventId='" + eventId + '\'' +
-                ", email='" + email + '\'' +
+        return "UserResetPasswordEvent{" +
+                "email='" + email + '\'' +
                 ", firstName='" + firstName + '\'' +
                 ", lastName='" + lastName + '\'' +
                 ", resetToken='" + resetToken + '\'' +
@@ -116,7 +106,7 @@ public class UserResetPasswordEvent {
      */
     @Override
     public int hashCode() {
-        return Objects.hash(eventId, email, firstName, lastName, resetToken);
+        return Objects.hash(email, firstName, lastName, resetToken);
     }
 
     /**
@@ -130,8 +120,7 @@ public class UserResetPasswordEvent {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         UserResetPasswordEvent userEvent = (UserResetPasswordEvent) o;
-        return Objects.equals(eventId, userEvent.eventId) &&
-                Objects.equals(email, userEvent.email) &&
+        return Objects.equals(email, userEvent.email) &&
                 Objects.equals(firstName, userEvent.firstName) &&
                 Objects.equals(lastName, userEvent.lastName) &&
                 Objects.equals(resetToken, userEvent.resetToken);

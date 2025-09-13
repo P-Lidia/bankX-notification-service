@@ -2,7 +2,6 @@ package com.bankx.notification.repository;
 
 import com.bankx.notification.config.MongoConfig;
 import com.bankx.notification.model.entity.NotificationLog;
-import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -18,18 +17,19 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Репозиторий для работы с логами уведомлений в MongoDB.
  *
  * <p>Предоставляет методы для сохранения, поиска и обновления записей о отправленных уведомлениях.
- * Обеспечивает защиту от дубликатов через уникальные индексы и обработку ошибок.
  */
 @ApplicationScoped
 public class NotificationLogRepository {
+    private static final Logger LOG = Logger.getLogger(NotificationLogRepository.class.getName());
 
     @Inject
     private MongoClient mongoClient;
@@ -51,17 +51,16 @@ public class NotificationLogRepository {
      * Сохраняет запись о уведомлении в базе данных.
      *
      * @param log запись лога для сохранения
-     * @return сохраненная запись или null в случае дубликата
-     * @throws MongoWriteException если произошла ошибка записи (кроме дубликатов)
+     * @return сохраненная запись
+     * @throws MongoWriteException если произошла ошибка записи
      */
     public NotificationLog saveNotificationLog(NotificationLog log) {
         try {
             getNotificationLogsCollection().insertOne(log);
+            LOG.info("Saved notification log for email: " + log.getEmail());
             return log;
         } catch (MongoWriteException e) {
-            if (e.getError() != null && e.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
-                return null;
-            }
+            LOG.log(Level.SEVERE, "Failed to save notification log: " + e.getMessage(), e);
             throw e;
         }
     }
@@ -133,119 +132,70 @@ public class NotificationLogRepository {
     }
 
     /**
-     * Создает индексы для коллекции логов уведомлений.
+     * Обновляет статус записи лога по email и activation key.
      *
-     * <p>Метод выполняется автоматически при инициализации бина.
-     * Создает уникальный индекс по eventId для предотвращения дубликатов
-     * и дополнительные индексы для улучшения производительности запросов.
+     * @param email         электронная почта
+     * @param activationKey ключ активации
+     * @param status        новый статус
+     * @param errorMessage  сообщение об ошибке (если есть)
      */
-    @PostConstruct
-    public void ensureNotificationLogsIndexes() {
-        MongoDatabase database = mongoClient.getDatabase(mongoConfig.getDatabaseName());
-        MongoCollection<Document> collection = database.getCollection("notification_logs");
-        collection.createIndex(
-                Indexes.ascending("event_id"),
-                new IndexOptions().unique(true)
+    public void updateNotificationLogStatus(String email, String activationKey, String status, String errorMessage) {
+        Bson query = Filters.and(
+                Filters.eq("email", email),
+                Filters.eq("activation_key", activationKey)
         );
-        collection.createIndex(Indexes.ascending("email"));
-        collection.createIndex(Indexes.ascending("status"));
-        collection.createIndex(Indexes.ascending("created_at"));
-        collection.createIndex(Indexes.ascending("activation_key"));
-        collection.createIndex(Indexes.ascending("reset_token"));
-        collection.createIndex(Indexes.compoundIndex(
-                Indexes.ascending("status"),
-                Indexes.ascending("created_at")
-        ));
-    }
 
-    /**
-     * Проверяет существование записи с указанным eventId.
-     *
-     * @param eventId идентификатор события
-     * @return true если запись существует, иначе false
-     */
-    public boolean existsByEventId(String eventId) {
-        if (eventId == null) return false;
-        return getNotificationLogsCollection().find(Filters.eq("eventId", eventId)).first() != null;
-    }
-
-    /**
-     * Сохраняет информацию об успешной отправке уведомления.
-     * Игнорирует дубликаты событий.
-     *
-     * @param eventId   идентификатор события
-     * @param eventType тип события
-     * @param target    адрес получателя
-     */
-    public void saveSuccessEvent(String eventId, String eventType, String target) {
-        if (eventId == null) return;
-        NotificationLog log = new NotificationLog();
-        log.setEventId(eventId);
-        log.setEventType(eventType);
-        log.setEmail(target);
-        log.setStatus("SUCCESS");
-        log.setCreatedAt(LocalDateTime.now());
-        try {
-            getNotificationLogsCollection().insertOne(log);
-        } catch (MongoWriteException e) {
-            if (e.getError() != null && e.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
-                return;
-            }
-            throw e;
-        }
-    }
-
-    /**
-     * Сохраняет упрощенную запись о событии.
-     * Игнорирует дубликаты событий.
-     *
-     * @param eventId   идентификатор события
-     * @param eventType тип события
-     * @param target    адрес получателя
-     */
-    public void saveSimpleEvent(String eventId, String eventType, String target) {
-        if (eventId == null) return;
-        NotificationLog log = new NotificationLog();
-        log.setEventId(eventId);
-        log.setEventType(eventType);
-        log.setEmail(target);
-        log.setStatus("SUCCESS");
-        try {
-            getNotificationLogsCollection().insertOne(log);
-        } catch (MongoWriteException e) {
-            if (e.getError() != null && e.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
-                return;
-            }
-            throw e;
-        }
-    }
-
-    /**
-     * Находит запись лога по идентификатору события.
-     *
-     * @param eventId идентификатор события
-     * @return запись лога или null, если не найдена
-     */
-    public NotificationLog findNotificationLogByEventId(String eventId) {
-        if (eventId == null) return null;
-        return getNotificationLogsCollection()
-                .find(Filters.eq("event_id", eventId))
-                .first();
-    }
-
-    /**
-     * Обновляет статус записи лога по идентификатору события.
-     *
-     * @param eventId      идентификатор события
-     * @param status       новый статус
-     * @param errorMessage сообщение об ошибке (если есть)
-     */
-    public void updateNotificationLogStatusByEventId(String eventId, String status, String errorMessage) {
         Bson update = Updates.combine(
                 Updates.set("status", status),
                 Updates.set("error_message", errorMessage),
                 Updates.inc("attempt_count", 1)
         );
-        getNotificationLogsCollection().updateOne(Filters.eq("event_id", eventId), update);
+
+        getNotificationLogsCollection().updateOne(query, update);
+    }
+
+    /**
+     * Обновляет статус записи лога по email и reset token.
+     *
+     * @param email       электронная почта
+     * @param resetToken  токен сброса пароля
+     * @param status      новый статус
+     * @param errorMessage сообщение об ошибке (если есть)
+     */
+    public void updateNotificationLogStatusByResetToken(String email, String resetToken, String status, String errorMessage) {
+        Bson query = Filters.and(
+                Filters.eq("email", email),
+                Filters.eq("reset_token", resetToken)
+        );
+
+        Bson update = Updates.combine(
+                Updates.set("status", status),
+                Updates.set("error_message", errorMessage),
+                Updates.inc("attempt_count", 1)
+        );
+
+        getNotificationLogsCollection().updateOne(query, update);
+    }
+
+    /**
+     * Создает индексы для коллекции логов уведомлений.
+     *
+     * <p>Метод выполняется автоматически при инициализации бина.
+     * Создает индексы для улучшения производительности запросов.
+     */
+    @PostConstruct
+    public void ensureNotificationLogsIndexes() {
+        MongoDatabase database = mongoClient.getDatabase(mongoConfig.getDatabaseName());
+        MongoCollection<Document> collection = database.getCollection("notification_logs");
+
+        collection.createIndex(Indexes.ascending("email"));
+        collection.createIndex(Indexes.ascending("activation_key"));
+        collection.createIndex(Indexes.ascending("reset_token"));
+        collection.createIndex(Indexes.ascending("status"));
+        collection.createIndex(Indexes.ascending("created_at"));
+        collection.createIndex(Indexes.compoundIndex(
+                Indexes.ascending("status"),
+                Indexes.ascending("created_at")
+        ));
     }
 }

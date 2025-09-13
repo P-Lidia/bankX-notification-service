@@ -14,7 +14,6 @@ import jakarta.validation.constraints.*;
  * аннотации валидации Jakarta Bean Validation.
  */
 public class UserRegistrationEvent {
-    private String eventId;
 
     @NotNull(message = "Ключ активации обязателен")
     private UUID activationKey;
@@ -51,37 +50,18 @@ public class UserRegistrationEvent {
         this.activationKey = activationKey;
     }
 
-    public String getEventId() {
-        return eventId;
-    }
-
-    public void setEventId(String eventId) {
-        this.eventId = eventId;
-    }
-
     public UUID getActivationKey() {
         return activationKey;
-    }
-
-    public void setActivationKey(UUID activationKey) {
-        this.activationKey = activationKey;
     }
 
     public String getEmail() {
         return email;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
     public String getFirstName() {
         return firstName;
     }
 
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
 
     public String getLastName() {
         return lastName;
@@ -99,8 +79,7 @@ public class UserRegistrationEvent {
     @Override
     public String toString() {
         return "UserRegistrationEvent{" +
-                "eventId='" + eventId + '\'' +
-                ", activationKey=" + activationKey +
+                "activationKey=" + activationKey +
                 ", email='" + email + '\'' +
                 ", firstName='" + firstName + '\'' +
                 ", lastName='" + lastName + '\'' +
@@ -114,7 +93,7 @@ public class UserRegistrationEvent {
      */
     @Override
     public int hashCode() {
-        return Objects.hash(eventId, activationKey, email, firstName, lastName);
+        return Objects.hash( activationKey, email, firstName, lastName);
     }
 
     /**
@@ -128,8 +107,7 @@ public class UserRegistrationEvent {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         UserRegistrationEvent that = (UserRegistrationEvent) o;
-        return Objects.equals(eventId, that.eventId) &&
-                Objects.equals(activationKey, that.activationKey) &&
+        return Objects.equals(activationKey, that.activationKey) &&
                 Objects.equals(email, that.email) &&
                 Objects.equals(firstName, that.firstName) &&
                 Objects.equals(lastName, that.lastName);
