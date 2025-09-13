@@ -2,7 +2,6 @@ package com.bankx.notification.repository;
 
 import com.bankx.notification.config.MongoConfig;
 import com.bankx.notification.model.entity.NotificationLog;
-import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -18,9 +17,10 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Репозиторий для работы с логами уведомлений в MongoDB.
@@ -29,6 +29,7 @@ import java.util.List;
  */
 @ApplicationScoped
 public class NotificationLogRepository {
+    private static final Logger LOG = Logger.getLogger(NotificationLogRepository.class.getName());
 
     @Inject
     private MongoClient mongoClient;
@@ -56,8 +57,10 @@ public class NotificationLogRepository {
     public NotificationLog saveNotificationLog(NotificationLog log) {
         try {
             getNotificationLogsCollection().insertOne(log);
+            LOG.info("Saved notification log for email: " + log.getEmail());
             return log;
         } catch (MongoWriteException e) {
+            LOG.log(Level.SEVERE, "Failed to save notification log: " + e.getMessage(), e);
             throw e;
         }
     }

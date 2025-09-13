@@ -75,11 +75,19 @@ const now = new Date();
 // Вставляем шаблон для регистрации
 insertTemplateIfNotExists({
   templateType: "registration",
-  subject: "Активация аккаунта в BankX",
-  body: "Уважаемый(ая) {{firstName}} {{lastName}}, для активации вашего аккаунта перейдите по ссылке: {{activationLink}}",
+  subject: "🌸 Активация аккаунта в BankX",
+  body:
+    "<div style='background-color: #FFC0CB; padding: 20px;'>" +
+    "<p>Уважаемый(ая) <strong>\${firstName} \${lastName}</strong>,</p>" +
+    "<p>Для активации вашего аккаунта перейдите по ссылке:</p>" +
+    "<p><a href='\${activationLink}'>\${activationLink}</a></p>" +
+    "<p>Если вы не регистрировались, просто проигнорируйте это сообщение.</p>" +
+    "<br>" +
+    "<p>С уважением,<br>Команда BankX</p>" +
+    "</div>",
   variables: ["firstName", "lastName", "activationLink"],
   isActive: true,
-  isHtml: false,
+  isHtml: true,
   createdAt: now,
   updatedAt: now
 });
@@ -87,11 +95,19 @@ insertTemplateIfNotExists({
 // Вставляем шаблон для запроса сброса пароля
 insertTemplateIfNotExists({
   templateType: "password_reset_request",
-  subject: "Запрос на сброс пароля BankX",
-  body: "Уважаемый(ая) {{firstName}} {{lastName}}! Для восстановления пароля перейдите по ссылке: {{resetLink}}",
+  subject: "❤️‍🩹 Запрос на сброс пароля BankX",
+  body:
+    "<div style='background-color: #e0f8e0; padding: 20px;'>" +
+    "<p>Уважаемый(ая) <strong>\${firstName} \${lastName}</strong>,</p>" +
+    "<p>Для восстановления пароля перейдите по ссылке:</p>" +
+    "<p><a href='\${resetLink}'>\${resetLink}</a></p>" +
+    "<p>Если вы не запрашивали сброс пароля, просто проигнорируйте это сообщение.</p>" +
+    "<br>" +
+    "<p>С уважением,<br>Команда BankX</p>" +
+    "</div>",
   variables: ["firstName", "lastName", "resetLink"],
   isActive: true,
-  isHtml: false,
+  isHtml: true,
   createdAt: now,
   updatedAt: now
 });
@@ -100,7 +116,7 @@ insertTemplateIfNotExists({
 insertTemplateIfNotExists({
   templateType: "password_reset_success",
   subject: "Пароль BankX изменен",
-  body: "Уважаемый(ая) {{firstName}} {{lastName}}, ваш пароль был изменен",
+  body: "Уважаемый(ая) \${firstName} \${lastName}, ваш пароль был изменен",
   variables: ["firstName", "lastName"],
   isActive: true,
   isHtml: false,
@@ -112,7 +128,7 @@ insertTemplateIfNotExists({
 insertTemplateIfNotExists({
   templateType: "account_activated",
   subject: "Успешная регистрация в BankX",
-  body: "Уважаемый(ая) {{firstName}} {{lastName}}, поздравляем вас с успешной регистрацией в BankX!",
+  body: "Уважаемый(ая) \${firstName} \${lastName}, поздравляем вас с успешной регистрацией в BankX!",
   variables: ["firstName", "lastName"],
   isActive: true,
   isHtml: false,
