@@ -1,8 +1,12 @@
 package com.bankx.notification.model.dto;
 
-import java.util.Objects;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
-import jakarta.validation.constraints.*;
+import java.util.Objects;
+import java.util.UUID;
 
 /**
  * DTO класс, представляющий событие сброса пароля пользователя.
@@ -26,9 +30,8 @@ public class UserResetPasswordEvent {
     @Size(max = 50, message = "Фамилия не должна превышать 50 символов")
     private String lastName;
 
-    @NotBlank(message = "Токен для сброса пароля обязателен")
-    @Size(min = 16, max = 128, message = "Токен для сброса пароля должен быть длиной от 16 до 128 символов")
-    private String resetToken;
+    @NotNull(message = "Токен для сброса пароля обязателен")
+    private UUID resetToken;
 
     /**
      * Конструктор по умолчанию.
@@ -44,8 +47,7 @@ public class UserResetPasswordEvent {
      * @param lastName   фамилия пользователя
      * @param resetToken токен для сброса пароля
      */
-    public UserResetPasswordEvent(String email, String firstName,
-                                  String lastName, String resetToken) {
+    public UserResetPasswordEvent(String email, String firstName, String lastName, UUID resetToken) {
         this.email = email;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -56,32 +58,16 @@ public class UserResetPasswordEvent {
         return email;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
     public String getFirstName() {
         return firstName;
-    }
-
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
     }
 
     public String getLastName() {
         return lastName;
     }
 
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public String getResetToken() {
+    public UUID getResetToken() {
         return resetToken;
-    }
-
-    public void setResetToken(String resetToken) {
-        this.resetToken = resetToken;
     }
 
     /**

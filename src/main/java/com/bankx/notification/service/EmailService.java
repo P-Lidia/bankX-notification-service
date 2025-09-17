@@ -48,6 +48,12 @@ public class EmailService {
     @Inject
     private EmailTemplateRepository emailTemplateRepository;
 
+    /**
+     * Инициализация FreeMarker конфигурации после создания бина.
+     *
+     * <p>Настраивает версию, кодировку и обработчик исключений для шаблонов.
+     * В дальнейшем используется для обработки шаблонов с переменными.
+     */
     @PostConstruct
     public void init() {
         freemarkerConfig = new Configuration(Configuration.VERSION_2_3_32);
@@ -72,14 +78,10 @@ public class EmailService {
             String templateName = "template";
             stringLoader.putTemplate(templateName, templateContent);
             freemarkerConfig.setTemplateLoader(stringLoader);
-
             Template template = freemarkerConfig.getTemplate(templateName);
             StringWriter writer = new StringWriter();
-
-            // Преобразуем Map<String, String> в Map<String, Object> для FreeMarker
             Map<String, Object> templateVariables = new HashMap<>(variables);
             template.process(templateVariables, writer);
-
             return writer.toString();
         } catch (IOException e) {
             throw new ApplicationException(
@@ -230,7 +232,6 @@ public class EmailService {
             String username = applicationConfig.getProperty("email.smtp.username");
             String from = applicationConfig.getProperty("email.from.address", username);
             String password = applicationConfig.getProperty("email.smtp.password");
-
             if (host == null || port == null || username == null || password == null) {
                 throw new ApplicationException(
                         ErrorCode.EMAIL_SEND_ERROR,
@@ -238,7 +239,6 @@ public class EmailService {
                         "Check email configuration properties"
                 );
             }
-
             Properties properties = new Properties();
             properties.put("mail.smtp.host", host);
             properties.put("mail.smtp.port", port);
@@ -247,25 +247,21 @@ public class EmailService {
             properties.put("mail.smtp.starttls.enable", "true");
             properties.put("mail.smtp.ssl.trust", host);
             properties.put("mail.debug", "true");
-
             Session session = Session.getInstance(properties, new Authenticator() {
                 @Override
                 protected PasswordAuthentication getPasswordAuthentication() {
                     return new PasswordAuthentication(username, password);
                 }
             });
-
             MimeMessage message = new MimeMessage(session);
             message.setFrom(new InternetAddress(from));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
             message.setSubject(subject, "UTF-8");
-
             if (isHtml) {
                 message.setContent(body, "text/html; charset=UTF-8");
             } else {
                 message.setText(body, "UTF-8");
             }
-
             Transport.send(message);
             LOG.info("Email successfully delivered to SMTP server for: " + toEmail);
         } catch (AuthenticationFailedException e) {

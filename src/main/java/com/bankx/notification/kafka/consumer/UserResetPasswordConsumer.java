@@ -119,7 +119,7 @@ public class UserResetPasswordConsumer {
         try (AdminClient adminClient = AdminClient.create(consumerProps)) {
             boolean topicExists = false;
             int attempt = 0;
-            int maxAttempts = 12; // 1 minute total waiting (12 * 5 seconds)
+            int maxAttempts = 12;
             while (!topicExists && attempt < maxAttempts) {
                 attempt++;
                 ListTopicsResult topics = adminClient.listTopics();
@@ -173,7 +173,6 @@ public class UserResetPasswordConsumer {
             while (running) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
                 LOG.info("Polled " + records.count() + " password reset records");
-
                 records.forEach(record -> {
                     try {
                         UserResetPasswordEvent resetEvent = objectMapper.readValue(
@@ -184,10 +183,8 @@ public class UserResetPasswordConsumer {
                         notificationService.processPasswordReset(resetEvent);
                         LOG.info("Successfully processed password reset event for: " + resetEvent.getEmail());
                     } catch (ApplicationException e) {
-                        // Обрабатываем известные исключения
                         exceptionMapper.handleException(e);
                     } catch (Exception e) {
-                        // Оборачиваем неизвестные исключения в ApplicationException
                         ApplicationException appEx = new ApplicationException(
                                 ErrorCode.DESERIALIZATION_ERROR,
                                 "Error processing password reset message",

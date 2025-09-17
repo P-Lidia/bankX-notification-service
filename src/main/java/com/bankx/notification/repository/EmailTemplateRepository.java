@@ -10,6 +10,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.bson.conversions.Bson;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  * Репозиторий для работы с шаблонами электронных писем в MongoDB.
  *
@@ -18,6 +21,7 @@ import org.bson.conversions.Bson;
  */
 @ApplicationScoped
 public class EmailTemplateRepository {
+    private static final Logger LOG = Logger.getLogger(EmailTemplateRepository.class.getName());
 
     @Inject
     private MongoClient mongoClient;
@@ -31,6 +35,7 @@ public class EmailTemplateRepository {
      * @return коллекция шаблонов писем
      */
     private MongoCollection<EmailTemplate> getEmailTemplatesCollection() {
+        LOG.fine("Getting 'email_templates' collection from database: " + mongoConfig.getDatabaseName());
         MongoDatabase database = mongoClient.getDatabase(mongoConfig.getDatabaseName());
         return database.getCollection("email_templates", EmailTemplate.class);
     }
@@ -44,15 +49,22 @@ public class EmailTemplateRepository {
      * @return шаблон письма или null, если не найден
      */
     public EmailTemplate findByTemplateType(String templateType) {
-        Bson query = Filters.and(
-                Filters.eq("templateType", templateType),
-                Filters.eq("isActive", true)
-        );
-        return getEmailTemplatesCollection().find(query).first();
+        LOG.info("Searching for active EmailTemplate by templateType: " + templateType);
+        try {
+            Bson query = Filters.and(
+                    Filters.eq("templateType", templateType),
+                    Filters.eq("isActive", true)
+            );
+            EmailTemplate template = getEmailTemplatesCollection().find(query).first();
+            if (template != null) {
+                LOG.fine("Found EmailTemplate for templateType: " + templateType);
+            } else {
+                LOG.warning("No active EmailTemplate found for templateType: " + templateType);
+            }
+            return template;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Error occurred while finding EmailTemplate for templateType: " + templateType, e);
+            return null;
+        }
     }
-
-
-
-
-
 }

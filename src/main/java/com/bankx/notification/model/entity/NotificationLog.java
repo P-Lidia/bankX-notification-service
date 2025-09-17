@@ -30,7 +30,7 @@ public class NotificationLog {
     private UUID activationKey;
 
     @BsonProperty("reset_token")
-    private String resetToken;
+    private UUID resetToken;
 
     @BsonProperty("created_at")
     private LocalDateTime createdAt;
@@ -101,11 +101,11 @@ public class NotificationLog {
         this.activationKey = activationKey;
     }
 
-    public String getResetToken() {
+    public UUID getResetToken() {
         return resetToken;
     }
 
-    public void setResetToken(String resetToken) {
+    public void setResetToken(UUID resetToken) {
         this.resetToken = resetToken;
     }
 
@@ -139,12 +139,5 @@ public class NotificationLog {
 
     public void setAttemptCount(int attemptCount) {
         this.attemptCount = attemptCount;
-    }
-
-    /**
-     * Увеличивает счетчик попыток отправки на 1.
-     */
-    public void incrementAttemptCount() {
-        this.attemptCount++;
     }
 }

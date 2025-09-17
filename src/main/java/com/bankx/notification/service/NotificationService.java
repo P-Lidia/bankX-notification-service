@@ -3,7 +3,6 @@ package com.bankx.notification.service;
 import com.bankx.notification.config.ApplicationConfig;
 import com.bankx.notification.exception.ApplicationException;
 import com.bankx.notification.exception.ErrorCode;
-import com.bankx.notification.exception.ExceptionMapper;
 import com.bankx.notification.model.dto.UserRegistrationEvent;
 import com.bankx.notification.model.dto.UserResetPasswordEvent;
 import com.bankx.notification.model.entity.NotificationLog;
@@ -38,9 +37,6 @@ public class NotificationService {
     private NotificationLogRepository notificationLogRepository;
 
     @Inject
-    private ExceptionMapper exceptionMapper;
-
-    @Inject
     private ApplicationConfig applicationConfig;
 
     /**
@@ -69,20 +65,17 @@ public class NotificationService {
             throw new ApplicationException(ErrorCode.VALIDATION_ERROR,
                     "Validation failed", msg);
         }
-
         NotificationLog savedLog = null;
         try {
             NotificationLog logEntry = createActivationLogEntry(userEvent);
             savedLog = notificationLogRepository.saveNotificationLog(logEntry);
-
-            String activationLink = applicationConfig.getAppHost() + "/activate?key=" + userEvent.getActivationKey();
+            String activationLink = applicationConfig.getAppHost() + "/auth/activate?token=" + userEvent.getActivationKey();
             emailService.sendActivationEmail(
                     userEvent.getEmail(),
                     activationLink,
                     userEvent.getFirstName(),
                     userEvent.getLastName()
             );
-
             notificationLogRepository.markNotificationLogAsSent(savedLog.getId());
             LOG.info("Activation email sent to: " + userEvent.getEmail());
         } catch (Exception e) {
@@ -90,7 +83,6 @@ public class NotificationService {
                 notificationLogRepository.updateNotificationLogStatus(
                         savedLog.getId(), "FAILED", e.getMessage());
             } else {
-                // Если не удалось сохранить лог, пытаемся обновить по email и activationKey
                 notificationLogRepository.updateNotificationLogStatus(
                         userEvent.getEmail(),
                         userEvent.getActivationKey().toString(),
@@ -98,7 +90,6 @@ public class NotificationService {
                         e.getMessage()
                 );
             }
-
             if (e instanceof ApplicationException) {
                 throw (ApplicationException) e;
             } else {
@@ -137,20 +128,17 @@ public class NotificationService {
             throw new ApplicationException(ErrorCode.VALIDATION_ERROR,
                     "Validation failed", msg);
         }
-
         NotificationLog savedLog = null;
         try {
             NotificationLog logEntry = createPasswordResetLogEntry(event);
             savedLog = notificationLogRepository.saveNotificationLog(logEntry);
-
-            String resetLink = applicationConfig.getAppHost() + "/recover?key=" + event.getResetToken();
+            String resetLink = applicationConfig.getAppHost() + "/auth/reset-password?token=" + event.getResetToken();
             emailService.sendPasswordResetEmail(
                     event.getEmail(),
                     resetLink,
                     event.getFirstName(),
                     event.getLastName()
             );
-
             notificationLogRepository.markNotificationLogAsSent(savedLog.getId());
             LOG.info("Password reset email sent to: " + event.getEmail());
         } catch (Exception e) {
@@ -158,15 +146,13 @@ public class NotificationService {
                 notificationLogRepository.updateNotificationLogStatus(
                         savedLog.getId(), "FAILED", e.getMessage());
             } else {
-                // Если не удалось сохранить лог, пытаемся обновить по email и resetToken
                 notificationLogRepository.updateNotificationLogStatusByResetToken(
                         event.getEmail(),
-                        event.getResetToken(),
+                        event.getResetToken().toString(),
                         "FAILED",
                         e.getMessage()
                 );
             }
-
             if (e instanceof ApplicationException) {
                 throw (ApplicationException) e;
             } else {
