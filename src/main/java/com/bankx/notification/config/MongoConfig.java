@@ -1,5 +1,7 @@
 package com.bankx.notification.config;
 
+import com.bankx.notification.exception.ApplicationException;
+import com.bankx.notification.exception.ErrorCode;
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoClient;
@@ -24,8 +26,7 @@ import java.util.logging.Logger;
  * В классе MongoConfig используется PojoCodecProvider, который позволяет MongoDB
  * автоматически сериализовать и десериализовать POJO-объекты. Это означает,
  * что вы можете работать с MongoDB используя свои обычные Java-классы (например, NotificationLog, EmailTemplate),
- * без необходимости преобразовывать их в специальные форматы/
- *
+ * без необходимости преобразовывать их в специальные форматы
  */
 @ApplicationScoped
 public class MongoConfig {
@@ -57,8 +58,11 @@ public class MongoConfig {
      *   <li>Стандартное представление UUID</li>
      * </ul>
      *
+     * <p>В случае ошибки создается и выбрасывается {@link ApplicationException}
+     * с кодом {@link ErrorCode#DATABASE_OPERATION_ERROR}, включающим детали и оригинальную причину.
+     *
      * @return настроенный экземпляр {@link MongoClient}
-     * @throws RuntimeException если не удалось создать клиент
+     * @throws ApplicationException если не удалось создать клиент
      */
     @Produces
     @ApplicationScoped
@@ -76,8 +80,13 @@ public class MongoConfig {
                     .build();
             return MongoClients.create(settings);
         } catch (Exception e) {
-            LOG.severe("Failed to create MongoClient: " + e.getMessage());
-            throw new RuntimeException("Failed to create MongoClient", e);
+            String errorDetails = "Failed to create MongoClient with connection string: " + connectionString;
+            throw new ApplicationException(
+                    ErrorCode.DATABASE_OPERATION_ERROR,
+                    "Error creating MongoClient",
+                    errorDetails,
+                    e
+            );
         }
     }
 

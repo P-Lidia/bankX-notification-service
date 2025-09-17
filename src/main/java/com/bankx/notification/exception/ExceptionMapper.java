@@ -1,10 +1,9 @@
 package com.bankx.notification.exception;
 
+import jakarta.enterprise.context.ApplicationScoped;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.Level;
-
-import jakarta.enterprise.context.ApplicationScoped;
 
 /**
  * Маппер для обработки и логирования исключений.
@@ -25,38 +24,12 @@ public class ExceptionMapper {
      * @param exception исключение для обработки
      */
     public void handleException(ApplicationException exception) {
-        // Определяем уровень логирования в зависимости от типа ошибки
         Level logLevel = getLogLevelForErrorCode(exception.getErrorCode());
-
-        // Формируем детальное сообщение для лога
         String logMessage = buildLogMessage(exception);
-
-        // Логируем с соответствующим уровнем
         LOG.log(logLevel, logMessage, exception);
-
         //todo Здесь можно добавить дополнительную логику обработки:
         // - отправка уведомлений для критических ошибок
         // - и т.д.
-    }
-
-    /**
-     * Обрабатывает любое исключение, преобразуя его при необходимости в ApplicationException.
-     *
-     * @param throwable исключение для обработки
-     */
-    public void handleException(Throwable throwable) {
-        if (throwable instanceof ApplicationException) {
-            handleException((ApplicationException) throwable);
-        } else {
-            // Преобразуем неизвестное исключение в ApplicationException
-            ApplicationException appException = new ApplicationException(
-                    ErrorCode.UNKNOWN_ERROR,
-                    "Unexpected error occurred",
-                    throwable.getMessage(),
-                    throwable
-            );
-            handleException(appException);
-        }
     }
 
     /**
@@ -66,26 +39,11 @@ public class ExceptionMapper {
      * @return уровень логирования
      */
     private Level getLogLevelForErrorCode(ErrorCode errorCode) {
-        switch (errorCode) {
-            case CONFIGURATION_LOAD_ERROR:
-            case DATABASE_OPERATION_ERROR:
-            case KAFKA_OPERATION_ERROR:
-                return Level.ERROR;
-
-            case EMAIL_SEND_ERROR:
-            case DESERIALIZATION_ERROR:
-                return Level.WARN;
-
-            case DUPLICATE_EVENT_ERROR:
-                return Level.INFO;
-
-            case EMAIL_TEMPLATE_NOT_FOUND:
-                return Level.WARN;
-
-            case UNKNOWN_ERROR:
-            default:
-                return Level.ERROR;
-        }
+        return switch (errorCode) {
+            case EMAIL_SEND_ERROR, DESERIALIZATION_ERROR, EMAIL_TEMPLATE_NOT_FOUND -> Level.WARN;
+            case DUPLICATE_EVENT_ERROR -> Level.INFO;
+            default -> Level.ERROR;
+        };
     }
 
     /**
@@ -98,15 +56,12 @@ public class ExceptionMapper {
         StringBuilder message = new StringBuilder();
         message.append("ErrorCode: ").append(exception.getErrorCode());
         message.append(" | Message: ").append(exception.getMessage());
-
         if (exception.getDetails() != null) {
             message.append(" | Details: ").append(exception.getDetails());
         }
-
         if (exception.getCause() != null) {
             message.append(" | Cause: ").append(exception.getCause().getMessage());
         }
-
         return message.toString();
     }
 }

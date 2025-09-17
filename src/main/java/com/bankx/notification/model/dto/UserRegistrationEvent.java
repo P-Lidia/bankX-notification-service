@@ -1,8 +1,12 @@
 package com.bankx.notification.model.dto;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
 import java.util.Objects;
 import java.util.UUID;
-import jakarta.validation.constraints.*;
 
 /**
  * DTO класс, представляющий событие регистрации пользователя.
@@ -62,13 +66,8 @@ public class UserRegistrationEvent {
         return firstName;
     }
 
-
     public String getLastName() {
         return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
     }
 
     /**
@@ -93,7 +92,7 @@ public class UserRegistrationEvent {
      */
     @Override
     public int hashCode() {
-        return Objects.hash( activationKey, email, firstName, lastName);
+        return Objects.hash(activationKey, email, firstName, lastName);
     }
 
     /**

@@ -81,7 +81,6 @@ public class UserRegistrationConsumer {
     public void initializeConsumer() {
         try {
             LOG.info("=== KAFKA CONSUMER INITIALIZATION STARTED ===");
-
             Properties consumerProps = kafkaConsumerConfig.getConsumerProperties(
                     "notification-service-registration-group"
             );
@@ -120,7 +119,7 @@ public class UserRegistrationConsumer {
         try (AdminClient adminClient = AdminClient.create(consumerProps)) {
             boolean topicExists = false;
             int attempt = 0;
-            int maxAttempts = 12; // 1 minute total waiting (12 * 5 seconds)
+            int maxAttempts = 12;
             while (!topicExists && attempt < maxAttempts) {
                 attempt++;
                 ListTopicsResult topics = adminClient.listTopics();
@@ -174,7 +173,6 @@ public class UserRegistrationConsumer {
             while (running) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
                 LOG.info("Polled " + records.count() + " records");
-
                 records.forEach(record -> {
                     try {
                         LOG.info("Received message: " + record.value());
@@ -183,20 +181,15 @@ public class UserRegistrationConsumer {
                                 UserRegistrationEvent.class
                         );
                         LOG.info("Parsed user registration event: " + userEvent);
-
                         notificationService.processUserActivation(userEvent);
                         LOG.info("Successfully processed user event for: " + userEvent.getEmail());
-
-// Явный коммит offset после успешной обработки
                         consumer.commitSync(Collections.singletonMap(
                                 new TopicPartition(record.topic(), record.partition()),
                                 new OffsetAndMetadata(record.offset() + 1)
                         ));
                     } catch (ApplicationException e) {
-                        // Обрабатываем известные исключения
                         exceptionMapper.handleException(e);
                     } catch (Exception e) {
-                        // Оборачиваем неизвестные исключения в ApplicationException
                         ApplicationException appEx = new ApplicationException(
                                 ErrorCode.DESERIALIZATION_ERROR,
                                 "Error processing Kafka message",

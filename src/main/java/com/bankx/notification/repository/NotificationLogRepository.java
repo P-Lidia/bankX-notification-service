@@ -7,7 +7,6 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.mongodb.client.model.Updates;
 import jakarta.annotation.PostConstruct;
@@ -17,15 +16,13 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * Репозиторий для работы с логами уведомлений в MongoDB.
  *
- * <p>Предоставляет методы для сохранения, поиска и обновления записей о отправленных уведомлениях.
+ * <p>Предоставляет методы для сохранения, поиска и обновления записей об отправленных уведомлениях.
  */
 @ApplicationScoped
 public class NotificationLogRepository {
@@ -43,12 +40,13 @@ public class NotificationLogRepository {
      * @return коллекция логов уведомлений
      */
     private MongoCollection<NotificationLog> getNotificationLogsCollection() {
+        LOG.fine("Getting 'notification_logs' collection from database: " + mongoConfig.getDatabaseName());
         MongoDatabase database = mongoClient.getDatabase(mongoConfig.getDatabaseName());
         return database.getCollection("notification_logs", NotificationLog.class);
     }
 
     /**
-     * Сохраняет запись о уведомлении в базе данных.
+     * Сохраняет запись об уведомлении в базе данных.
      *
      * @param log запись лога для сохранения
      * @return сохраненная запись
@@ -63,42 +61,6 @@ public class NotificationLogRepository {
             LOG.log(Level.SEVERE, "Failed to save notification log: " + e.getMessage(), e);
             throw e;
         }
-    }
-
-    /**
-     * Находит запись лога по идентификатору.
-     *
-     * @param id идентификатор записи
-     * @return запись лога или null, если не найдена
-     */
-    public NotificationLog findNotificationLogById(ObjectId id) {
-        return getNotificationLogsCollection()
-                .find(Filters.eq("_id", id))
-                .first();
-    }
-
-    /**
-     * Находит все записи логов для указанного email.
-     *
-     * @param email адрес электронной почты
-     * @return список записей логов
-     */
-    public List<NotificationLog> findNotificationLogsByEmail(String email) {
-        return getNotificationLogsCollection()
-                .find(Filters.eq("email", email))
-                .into(new ArrayList<>());
-    }
-
-    /**
-     * Находит все записи логов с указанным статусом.
-     *
-     * @param status статус уведомления
-     * @return список записей логов
-     */
-    public List<NotificationLog> findNotificationLogsByStatus(String status) {
-        return getNotificationLogsCollection()
-                .find(Filters.eq("status", status))
-                .into(new ArrayList<>());
     }
 
     /**
@@ -144,22 +106,20 @@ public class NotificationLogRepository {
                 Filters.eq("email", email),
                 Filters.eq("activation_key", activationKey)
         );
-
         Bson update = Updates.combine(
                 Updates.set("status", status),
                 Updates.set("error_message", errorMessage),
                 Updates.inc("attempt_count", 1)
         );
-
         getNotificationLogsCollection().updateOne(query, update);
     }
 
     /**
      * Обновляет статус записи лога по email и reset token.
      *
-     * @param email       электронная почта
-     * @param resetToken  токен сброса пароля
-     * @param status      новый статус
+     * @param email        электронная почта
+     * @param resetToken   токен сброса пароля
+     * @param status       новый статус
      * @param errorMessage сообщение об ошибке (если есть)
      */
     public void updateNotificationLogStatusByResetToken(String email, String resetToken, String status, String errorMessage) {
@@ -167,13 +127,11 @@ public class NotificationLogRepository {
                 Filters.eq("email", email),
                 Filters.eq("reset_token", resetToken)
         );
-
         Bson update = Updates.combine(
                 Updates.set("status", status),
                 Updates.set("error_message", errorMessage),
                 Updates.inc("attempt_count", 1)
         );
-
         getNotificationLogsCollection().updateOne(query, update);
     }
 
@@ -187,7 +145,6 @@ public class NotificationLogRepository {
     public void ensureNotificationLogsIndexes() {
         MongoDatabase database = mongoClient.getDatabase(mongoConfig.getDatabaseName());
         MongoCollection<Document> collection = database.getCollection("notification_logs");
-
         collection.createIndex(Indexes.ascending("email"));
         collection.createIndex(Indexes.ascending("activation_key"));
         collection.createIndex(Indexes.ascending("reset_token"));

@@ -10,8 +10,8 @@ COPY target/bankx-notification.war /opt/jboss/wildfly/standalone/deployments/
 # Создаем директорию для логов (если не существует)
 RUN mkdir -p /opt/jboss/wildfly/standalone/log/
 
-# Открываем порты для приложения (8080) и административной консоли (9990)
-EXPOSE 8080 9990
+# Открываем порты для приложения (8082) и административной консоли (9990)
+EXPOSE 8082 9990
 
 # Запускаем WildFly в standalone режиме с привязкой ко всем сетевым интерфейсам
 CMD ["/opt/jboss/wildfly/bin/standalone.sh", "-b", "0.0.0.0", "-bmanagement", "0.0.0.0"]

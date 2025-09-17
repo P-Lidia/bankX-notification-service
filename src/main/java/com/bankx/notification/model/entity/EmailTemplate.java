@@ -20,7 +20,6 @@ public class EmailTemplate {
 
     private String subject;
     private String body;
-
     private List<String> variables;
 
     @BsonProperty("isActive")

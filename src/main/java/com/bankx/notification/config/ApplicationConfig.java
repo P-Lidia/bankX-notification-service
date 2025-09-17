@@ -31,7 +31,6 @@ public class ApplicationConfig {
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("application.properties")) {
             if (input != null) {
                 properties.load(input);
-                // Загружаем свойство app.host
                 this.appHost = properties.getProperty("app.host", "http://localhost:8080");
             } else {
                 throw new ApplicationException(
@@ -48,9 +47,17 @@ public class ApplicationConfig {
         }
     }
 
+    /**
+     * Возвращает значение свойства "app.host", загруженного из файла конфигурации.
+     *
+     * <p>Если свойство не было найдено в файле свойств, возвращается значение по умолчанию "<a href="http://localhost:8080">...</a>".
+     *
+     * @return значение свойства "app.host" или значение по умолчанию
+     */
     public String getAppHost() {
         return appHost;
     }
+
     /**
      * Возвращает значение свойства по ключу или значение по умолчанию, если свойство не найдено.
      *
